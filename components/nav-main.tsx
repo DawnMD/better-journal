@@ -17,7 +17,10 @@ export function NavMain() {
       <SidebarGroupLabel>General</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton tooltip={"Home"}>
+          <SidebarMenuButton
+            tooltip={"Home"}
+            render={<Link href={"/dashboard"} />}
+          >
             <HomeIcon />
             <span>Home</span>
           </SidebarMenuButton>
