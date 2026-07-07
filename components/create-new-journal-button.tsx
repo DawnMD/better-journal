@@ -19,7 +19,11 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupTextarea } from "@/components/ui/input-group";
-import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import {
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,6 +45,7 @@ const formSchema = z.object({
 export const CreateNewJOurnalButton = () => {
   const queryClient = getQueryClient();
   const [open, setOpen] = useState(false);
+  const { setOpenMobile } = useSidebar();
 
   const { mutate, isPending } = useMutation(
     orpc.journalRouter.createJournal.mutationOptions({
@@ -49,6 +54,7 @@ export const CreateNewJOurnalButton = () => {
         queryClient.invalidateQueries({
           queryKey: orpc.journalRouter.getAllJournal.queryKey(),
         });
+        setOpenMobile(false);
         toast.success("Journal created successfully");
         setOpen(false);
       },
