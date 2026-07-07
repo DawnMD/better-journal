@@ -144,13 +144,7 @@ export const journalRouter = {
           },
         },
         include: {
-          notes: {
-            select: {
-              createdAt: true,
-              title: true,
-              updatedAt: true,
-            },
-          },
+          _count: true,
         },
       });
     }),
