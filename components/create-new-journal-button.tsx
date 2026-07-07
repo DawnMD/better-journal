@@ -36,42 +36,7 @@ const formSchema = z.object({
     .min(5, "Journal title must be at least 5 characters.")
     .max(32, "Journal title must be at most 32 characters."),
   description: z.string().optional(),
-  // hidden: z.boolean(),
-  // passwordProtected: z.boolean(),
-  // password: z.string().optional(),
-  // confirmPassword: z.string().optional(),
 });
-// .superRefine((data, ctx) => {
-//   if (!data.passwordProtected) return;
-
-//   if (!data.password) {
-//     ctx.addIssue({
-//       code: "custom",
-//       message: "Password is required",
-//       path: ["password"],
-//     });
-//   }
-
-//   if (!data.confirmPassword) {
-//     ctx.addIssue({
-//       code: "custom",
-//       message: "Confirm password is required",
-//       path: ["confirmPassword"],
-//     });
-//   }
-
-//   if (
-//     data.password &&
-//     data.confirmPassword &&
-//     data.password !== data.confirmPassword
-//   ) {
-//     ctx.addIssue({
-//       code: "custom",
-//       message: "Passwords don't match",
-//       path: ["confirmPassword"],
-//     });
-//   }
-// });
 
 export const CreateNewJOurnalButton = () => {
   const queryClient = getQueryClient();
@@ -94,31 +59,15 @@ export const CreateNewJOurnalButton = () => {
   );
 
   const form = useForm<z.infer<typeof formSchema>>({
-    //@ts-expect-error //https://github.com/react-hook-form/resolvers/issues/842
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
-      // hidden: false,
-      // passwordProtected: false,
-      // password: "",
-      // confirmPassword: "",
     },
   });
 
-  // const passwordProtected = form.watch("passwordProtected");
-
-  // useEffect(() => {
-  //   if (!passwordProtected) {
-  //     form.setValue("password", "");
-  //     form.setValue("confirmPassword", "");
-  //   }
-  // }, [passwordProtected, form]);
-
   function onSubmit(data: z.infer<typeof formSchema>) {
     mutate({
-      // hidden: data.hidden,
-      // password: data.password,
       title: data.title,
       description: data.description,
     });
