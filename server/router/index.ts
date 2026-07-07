@@ -1,9 +1,7 @@
-import { healthRouter } from "./health-check";
-import { userRouter } from "./user-router";
+import { journalRouter } from "./main-journal";
 
 export const router = {
-  healthCheck: healthRouter,
-  user: userRouter,
+  journalRouter,
 };
 
 export type AppRouter = typeof router;
