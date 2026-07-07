@@ -1,9 +1,10 @@
+import Providers from "@/components/proivders";
+import { Toaster } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
-import "./globals.css";
-import { cn } from "@/lib/utils";
 import "../lib/orpc.server";
-import Providers from "@/components/proivders";
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -34,7 +35,10 @@ export default function RootLayout({
       )}
     >
       <Providers>
-        <body className="min-h-full flex flex-col">{children}</body>
+        <body className="min-h-full flex flex-col">
+          {children}
+          <Toaster />
+        </body>
       </Providers>
     </html>
   );
