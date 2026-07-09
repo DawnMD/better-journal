@@ -2,34 +2,21 @@
 
 import * as React from "react";
 
+import { JournalList } from "@/components/journal-list";
 import { NavMain } from "@/components/nav-main";
-import { NavProjects } from "@/components/nav-projects";
 import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
+  SidebarMenu,
   SidebarMenuButton,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { GalleryVerticalEndIcon } from "lucide-react";
-
-// This is sample data.
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: <GalleryVerticalEndIcon />,
-      plan: "Enterprise",
-    },
-  ],
-};
+import { BrainCircuit } from "lucide-react";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -37,20 +24,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenuButton size="lg">
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            {data.teams[0].logo}
+            <BrainCircuit />
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{data.teams[0].name}</span>
-            <span className="truncate text-xs">{data.teams[0].plan}</span>
+            <span className="truncate font-medium">Better Journal</span>
           </div>
         </SidebarMenuButton>
       </SidebarHeader>
       <SidebarContent>
         <NavMain />
-        <NavProjects />
+        <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel>Journals</SidebarGroupLabel>
+          <SidebarMenu>
+            <JournalList />
+          </SidebarMenu>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
