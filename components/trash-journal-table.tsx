@@ -76,34 +76,38 @@ export const TrashedJournalTable = () => {
                 ))}
               </TableRow>
 
-              {/* {row.getIsExpanded() && (
+              {row.getIsExpanded() && (
                 <TableRow>
                   <TableCell colSpan={row.getVisibleCells().length}>
                     <Table>
                       <TableBody>
-                        {row.col.map((invoice) => (
-                          <TableRow key={invoice.invoice}>
-                            <TableCell className="font-medium">
-                              {invoice.invoice}
-                            </TableCell>
-                            <TableCell>{invoice.paymentStatus}</TableCell>
-                            <TableCell>{invoice.paymentMethod}</TableCell>
-                            <TableCell className="text-right">
-                              {invoice.totalAmount}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {row.original.notes.length === 0 ? (
+                          <TableCell colSpan={columns.length}>
+                            No Notes.
+                          </TableCell>
+                        ) : (
+                          row.original.notes.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium">
+                                {item.title}
+                              </TableCell>
+                              <TableCell>
+                                {item.updatedAt.toISOString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
                       </TableBody>
                     </Table>
                   </TableCell>
                 </TableRow>
-              )} */}
+              )}
             </Fragment>
           ))
         ) : (
           <TableRow>
             <TableCell colSpan={columns.length} className="h-24 text-center">
-              No results.
+              No Journals.
             </TableCell>
           </TableRow>
         )}
