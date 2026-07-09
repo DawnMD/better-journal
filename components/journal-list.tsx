@@ -18,9 +18,11 @@ import { getQueryClient } from "@/lib/query/get-query-client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { MoreHorizontalIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { toast } from "sonner";
 
 export const JournalList = () => {
+  const params = useParams();
   const queryClient = getQueryClient();
   const { isMobile } = useSidebar();
 
@@ -63,7 +65,10 @@ export const JournalList = () => {
     <>
       {journals?.map((item) => (
         <SidebarMenuItem key={item.id}>
-          <SidebarMenuButton render={<Link href={`/journal/${item.id}`} />}>
+          <SidebarMenuButton
+            isActive={params.journalId?.includes(item.id)}
+            render={<Link href={`/journal/${item.id}`} />}
+          >
             <span>{item.title}</span>
           </SidebarMenuButton>
           <DropdownMenu>
