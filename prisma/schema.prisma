@@ -32,5 +32,5 @@ model Note {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([journalId])
+  @@index([journalId, createdAt])
 }
