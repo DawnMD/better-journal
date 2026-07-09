@@ -28,12 +28,14 @@ export const columns: ColumnDef<TrashJournals>[] = [
         onClick={row.getToggleExpandedHandler()}
       >
         <span>{row.original.notes.length}</span>
-        <ChevronRight
-          className={cn(
-            "size-4 transition-transform",
-            row.getIsExpanded() && "rotate-90",
-          )}
-        />
+        {!!row.original.notes.length && (
+          <ChevronRight
+            className={cn(
+              "size-4 transition-transform",
+              row.getIsExpanded() && "rotate-90",
+            )}
+          />
+        )}
       </Button>
     ),
   },

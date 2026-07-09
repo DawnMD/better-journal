@@ -35,7 +35,7 @@ export const TrashedJournalTable = () => {
     getExpandedRowModel: getExpandedRowModel(),
     onExpandedChange: setExpanded,
 
-    getRowCanExpand: () => true,
+    getRowCanExpand: ({ original }) => !!original.notes.length,
 
     state: { expanded },
   });
@@ -79,26 +79,39 @@ export const TrashedJournalTable = () => {
               {row.getIsExpanded() && (
                 <TableRow>
                   <TableCell colSpan={row.getVisibleCells().length}>
-                    <Table>
-                      <TableBody>
-                        {row.original.notes.length === 0 ? (
-                          <TableCell colSpan={columns.length}>
-                            No Notes.
-                          </TableCell>
-                        ) : (
-                          row.original.notes.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell className="font-medium">
-                                {item.title}
-                              </TableCell>
-                              <TableCell>
-                                {item.updatedAt.toISOString()}
+                    <div className="p-4">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Updated</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {row.original.notes.length === 0 ? (
+                            <TableRow>
+                              <TableCell
+                                colSpan={2}
+                                className="text-muted-foreground"
+                              >
+                                No notes.
                               </TableCell>
                             </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
+                          ) : (
+                            row.original.notes.map((note) => (
+                              <TableRow key={note.id}>
+                                <TableCell className="font-medium">
+                                  {note.title}
+                                </TableCell>
+                                <TableCell>
+                                  {note.updatedAt.toISOString()}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
