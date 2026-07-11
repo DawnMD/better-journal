@@ -11,7 +11,7 @@ datasource db {
 }
 
 model Journal {
-  id          String   @id @default(uuid())
+  id          String   @id @default(cuid())
   title       String
   description String?
   userId      String
