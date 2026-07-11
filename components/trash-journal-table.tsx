@@ -18,6 +18,7 @@ import {
   getExpandedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { format } from "date-fns";
 import { Fragment, useState } from "react";
 
 export const TrashedJournalTable = () => {
@@ -104,7 +105,10 @@ export const TrashedJournalTable = () => {
                                   {note.title}
                                 </TableCell>
                                 <TableCell>
-                                  {note.updatedAt.toISOString()}
+                                  {format(
+                                    note.updatedAt,
+                                    "MMMM do, yyyy 'at' h:mm a",
+                                  )}
                                 </TableCell>
                               </TableRow>
                             ))

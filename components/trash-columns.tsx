@@ -1,17 +1,16 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
-
-import { TrashDropdownActions } from "./trash-dropdown-actions";
-import { Button } from "./ui/button";
-import { ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { orpc } from "@/lib/orpc.query";
 import { cn } from "@/lib/utils";
+import { InferClientOutputs } from "@orpc/client";
+import { ColumnDef } from "@tanstack/react-table";
+import { ChevronRight } from "lucide-react";
+import { TrashDropdownActions } from "./trash-dropdown-actions";
 
-export type TrashJournals = {
-  id: string;
-  title: string;
-  notes: { id: string; updatedAt: Date; title: string | null }[];
-};
+export type TrashJournals = InferClientOutputs<
+  typeof orpc.journalRouter.getTrashedJournal.call
+>[number];
 
 export const columns: ColumnDef<TrashJournals>[] = [
   {
