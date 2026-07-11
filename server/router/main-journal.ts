@@ -1,8 +1,7 @@
 import z from "zod";
 // import argon2 from "argon2";
-import { protectedProcedure } from "../orpc";
 import { ORPCError } from "@orpc/client";
-import { startOfDay, addDays, parseISO } from "date-fns";
+import { protectedProcedure } from "../orpc";
 
 export const journalRouter = {
   getAllJournal: protectedProcedure
@@ -47,34 +46,17 @@ export const journalRouter = {
     .input(
       z.object({
         id: z.string(),
-        date: z.string(),
       }),
     )
     .handler(async ({ context, input }) => {
-      const date = parseISO(input.date);
-      const start = startOfDay(date);
-      const end = addDays(start, 1);
-
       const journal = await context.db.journal.findUnique({
         where: {
           id: input.id,
         },
-
         include: {
           notes: {
-            where: {
-              createdAt: {
-                gte: start,
-                lt: end,
-              },
-            },
             select: {
-              title: true,
               createdAt: true,
-              id: true,
-            },
-            orderBy: {
-              createdAt: "asc",
             },
           },
         },
