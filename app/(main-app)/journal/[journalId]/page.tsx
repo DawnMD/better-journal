@@ -1,7 +1,7 @@
 import { HydrateClient } from "@/components/hydration";
+import { JournalData } from "@/components/journal-data";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
-import { JournalData } from "./journal-data";
 import { format } from "date-fns";
 
 export default async function JournalIdPage({
@@ -17,11 +17,21 @@ export default async function JournalIdPage({
 
   const queryClient = getQueryClient();
 
-  queryClient.prefetchQuery(
-    orpc.journalRouter.getJournalById.queryOptions({
-      input: { id: journalId, date: selectedDate },
-    }),
-  );
+  Promise.all([
+    queryClient.prefetchQuery(
+      orpc.journalRouter.getJournalById.queryOptions({
+        input: { id: journalId },
+      }),
+    ),
+    queryClient.prefetchQuery(
+      orpc.notesRouter.getAllNotesByIdAndDate.queryOptions({
+        input: {
+          journalId,
+          date: selectedDate,
+        },
+      }),
+    ),
+  ]);
 
   return (
     <HydrateClient client={queryClient}>
