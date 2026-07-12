@@ -2,6 +2,7 @@ import z from "zod";
 import { protectedProcedure } from "../orpc";
 import { addDays, format, startOfDay, parseISO } from "date-fns";
 import { ORPCError } from "@orpc/client";
+import { Value } from "platejs";
 
 export const notesRouter = {
   createNote: protectedProcedure
@@ -74,5 +75,30 @@ export const notesRouter = {
         throw new ORPCError("UNAUTHORIZED");
 
       return note;
+    }),
+  saveNote: protectedProcedure
+    .input(
+      z.object({
+        noteId: z.string(),
+        content: z.array(
+          z.object({
+            type: z.string().optional(),
+            children: z.array(z.any()),
+          }),
+        ),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      return await context.db.note.update({
+        data: {
+          content: input.content,
+        },
+        where: {
+          id: input.noteId,
+        },
+        include: {
+          journal: true,
+        },
+      });
     }),
 };
