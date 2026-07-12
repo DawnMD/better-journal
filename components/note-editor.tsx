@@ -17,9 +17,5 @@ export const NoteEditior = ({ noteId }: { noteId: string }) => {
     return <div>Something went wrong</div>;
   }
 
-  return (
-    <div>
-      <NotEditorContent key={data.id} note={data} />
-    </div>
-  );
+  return <NotEditorContent key={data.id} note={data} />;
 };

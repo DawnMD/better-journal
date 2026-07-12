@@ -96,42 +96,49 @@ export const NotEditorContent = ({
   }, [debouncedSave]);
 
   return (
-    <Plate
-      editor={editor}
-      onValueChange={() => {
-        const shouldSave = editor.operations.some(
-          (op) => op.type !== "set_selection",
-        );
+    <div className="container">
+      <Plate
+        editor={editor}
+        onValueChange={() => {
+          const shouldSave = editor.operations.some(
+            (op) => op.type !== "set_selection",
+          );
 
-        if (!shouldSave) return;
+          if (!shouldSave) return;
 
-        debouncedSave();
-      }}
-    >
-      <FixedToolbar className="flex justify-start gap-1 rounded-t-lg">
-        <ToolbarButton onClick={() => editor.tf.h1.toggle()}>H1</ToolbarButton>
-        <ToolbarButton onClick={() => editor.tf.h2.toggle()}>H2</ToolbarButton>
-        <ToolbarButton onClick={() => editor.tf.h3.toggle()}>H3</ToolbarButton>
-        <ToolbarButton onClick={() => editor.tf.blockquote.toggle()}>
-          Quote
-        </ToolbarButton>
-        <MarkToolbarButton nodeType={KEYS.highlight} tooltip="Highlight">
-          <HighlighterIcon />
-        </MarkToolbarButton>
-        <MarkToolbarButton nodeType="bold" tooltip="Bold (⌘+B)">
-          B
-        </MarkToolbarButton>
-        <MarkToolbarButton nodeType="italic" tooltip="Italic (⌘+I)">
-          I
-        </MarkToolbarButton>
-        <MarkToolbarButton nodeType="underline" tooltip="Underline (⌘+U)">
-          U
-        </MarkToolbarButton>
-        <div className="flex-1" />
-      </FixedToolbar>
-      <EditorContainer>
-        <Editor placeholder="Type your amazing content here..." />
-      </EditorContainer>
-    </Plate>
+          debouncedSave();
+        }}
+      >
+        <FixedToolbar className="flex justify-start gap-1 rounded-t-lg">
+          <ToolbarButton onClick={() => editor.tf.h1.toggle()}>
+            H1
+          </ToolbarButton>
+          <ToolbarButton onClick={() => editor.tf.h2.toggle()}>
+            H2
+          </ToolbarButton>
+          <ToolbarButton onClick={() => editor.tf.h3.toggle()}>
+            H3
+          </ToolbarButton>
+          <ToolbarButton onClick={() => editor.tf.blockquote.toggle()}>
+            Quote
+          </ToolbarButton>
+          <MarkToolbarButton nodeType={KEYS.highlight} tooltip="Highlight">
+            <HighlighterIcon />
+          </MarkToolbarButton>
+          <MarkToolbarButton nodeType="bold" tooltip="Bold (⌘+B)">
+            B
+          </MarkToolbarButton>
+          <MarkToolbarButton nodeType="italic" tooltip="Italic (⌘+I)">
+            I
+          </MarkToolbarButton>
+          <MarkToolbarButton nodeType="underline" tooltip="Underline (⌘+U)">
+            U
+          </MarkToolbarButton>
+        </FixedToolbar>
+        <EditorContainer>
+          <Editor placeholder="Type your amazing content here..." />
+        </EditorContainer>
+      </Plate>
+    </div>
   );
 };
