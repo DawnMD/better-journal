@@ -1,8 +1,7 @@
+import { ORPCError } from "@orpc/client";
+import { addDays, format, parseISO, startOfDay } from "date-fns";
 import z from "zod";
 import { protectedProcedure } from "../orpc";
-import { addDays, format, startOfDay, parseISO } from "date-fns";
-import { ORPCError } from "@orpc/client";
-import { Value } from "platejs";
 
 export const notesRouter = {
   createNote: protectedProcedure
