@@ -6,8 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { orpc } from "@/lib/orpc.query";
-import { getQueryClient } from "@/lib/query/get-query-client";
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { Plus } from "lucide-react";
 import Link from "next/link";
@@ -23,7 +26,7 @@ export const JournalData = ({ id }: { id: string }) => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
 
   const initialDate = searchParams.get("date")
     ? parseISO(searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd"))

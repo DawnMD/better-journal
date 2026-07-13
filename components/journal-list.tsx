@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/lib/orpc.query";
-import { getQueryClient } from "@/lib/query/get-query-client";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MoreHorizontalIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -23,7 +22,7 @@ import { toast } from "sonner";
 
 export const JournalList = () => {
   const params = useParams();
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   const { isMobile } = useSidebar();
 
   const { data: journals, isLoading: isJournalsLoading } = useQuery(

@@ -7,13 +7,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { orpc } from "@/lib/orpc.query";
-import { getQueryClient } from "@/lib/query/get-query-client";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MoreHorizontalIcon } from "lucide-react";
 import { toast } from "sonner";
 
 export const TrashDropdownActions = ({ id }: { id: string }) => {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   const { mutate: deletePermanently } = useMutation(
     orpc.journalRouter.deletePermanently.mutationOptions({
       onSuccess: () => {

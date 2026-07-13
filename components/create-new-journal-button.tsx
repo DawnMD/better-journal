@@ -25,14 +25,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { orpc } from "@/lib/orpc.query";
-import { getQueryClient } from "@/lib/query/get-query-client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { z } from "zod";
 import { toast } from "sonner";
+import { z } from "zod";
 
 const formSchema = z.object({
   title: z
@@ -43,7 +42,7 @@ const formSchema = z.object({
 });
 
 export const CreateNewJOurnalButton = () => {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const { setOpenMobile } = useSidebar();
 
