@@ -23,7 +23,7 @@ import { toast } from "sonner";
 export const JournalList = () => {
   const params = useParams();
   const queryClient = useQueryClient();
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   const { data: journals, isLoading: isJournalsLoading } = useQuery(
     orpc.journalRouter.getAllJournal.queryOptions(),
@@ -65,6 +65,7 @@ export const JournalList = () => {
       {journals?.map((item) => (
         <SidebarMenuItem key={item.id}>
           <SidebarMenuButton
+            onClick={() => setOpenMobile(false)}
             isActive={params.journalId?.includes(item.id)}
             render={<Link href={`/journal/${item.id}`} />}
           >
