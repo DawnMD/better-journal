@@ -60,6 +60,11 @@ export const notesRouter = {
       const note = await context.db.note.findUnique({
         where: {
           id: input.noteId,
+          AND: {
+            journal: {
+              trash: false,
+            },
+          },
         },
         include: {
           journal: {
@@ -70,7 +75,9 @@ export const notesRouter = {
         },
       });
 
-      if (note?.journal.userId !== context.userId)
+      if (!note) throw new ORPCError("NOT_FOUND");
+
+      if (note.journal.userId !== context.userId)
         throw new ORPCError("UNAUTHORIZED");
 
       return note;
