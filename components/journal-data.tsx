@@ -11,7 +11,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { format, parseISO } from "date-fns";
+import { format, isToday, parseISO } from "date-fns";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import {
@@ -31,6 +31,7 @@ export const JournalData = ({ id }: { id: string }) => {
   const initialDate = searchParams.get("date")
     ? parseISO(searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd"))
     : new Date();
+  const showAddNote = isToday(initialDate);
 
   const [date, setDate] = useState(initialDate);
 
@@ -126,12 +127,14 @@ export const JournalData = ({ id }: { id: string }) => {
           <div className="p-4">
             <div className="flex items-center justify-between">
               <h4 className="mb-4 text-sm leading-none font-medium">Notes</h4>
-              <Button
-                variant={"secondary"}
-                onClick={() => mutate({ journalId: id })}
-              >
-                <Plus />
-              </Button>
+              {showAddNote && (
+                <Button
+                  variant={"secondary"}
+                  onClick={() => mutate({ journalId: id })}
+                >
+                  <Plus />
+                </Button>
+              )}
             </div>
             {notes.length === 0 ? (
               <div className="text-sm text-muted-foreground">No notes</div>
