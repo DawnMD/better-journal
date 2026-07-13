@@ -21,6 +21,7 @@
     "@orpc/server": "^1.14.6",
     "@orpc/tanstack-query": "^1.14.6",
     "@platejs/basic-nodes": "^53.0.0",
+    "@prisma/adapter-neon": "^7.8.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@radix-ui/react-toolbar": "^1.1.15",

@@ -1,10 +1,12 @@
 import { createEnv } from "@t3-oss/env-nextjs";
+import { vercel, neonVercel } from "@t3-oss/env-nextjs/presets-zod";
 import * as z from "zod";
 
 export const env = createEnv({
   server: {
     CLERK_SECRET_KEY: z.string(),
     DATABASE_URL: z.string(),
+    NODE_ENV: z.enum(["development", "test", "production"]),
   },
   client: {
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string(),
@@ -24,7 +26,11 @@ export const env = createEnv({
       process.env.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL,
     NEXT_PUBLIC_CLERK_SIGN_UP_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL,
     DATABASE_URL: process.env.DATABASE_URL,
+    NODE_ENV: process.env.NODE_ENV,
   },
+  emptyStringAsUndefined: true,
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  extends: [vercel(), neonVercel()],
   // For Next.js >= 13.4.4, you only need to destructure client variables:
   // experimental__runtimeEnv: {
   //   NEXT_PUBLIC_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_PUBLISHABLE_KEY,
