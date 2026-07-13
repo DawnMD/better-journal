@@ -1,5 +1,6 @@
 "use client";
 
+import { CreateNewJOurnalButton } from "@/components/create-new-journal-button";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -7,8 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { HomeIcon, SearchIcon, Trash2Icon } from "lucide-react";
-import { CreateNewJOurnalButton } from "./create-new-journal-button";
+import { HomeIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 
 export function NavMain() {
@@ -34,12 +34,12 @@ export function NavMain() {
             <span>Trash</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem>
+        {/* <SidebarMenuItem>
           <SidebarMenuButton tooltip={"Search"}>
             <SearchIcon />
             <span>Search</span>
           </SidebarMenuButton>
-        </SidebarMenuItem>
+        </SidebarMenuItem> */}
         <CreateNewJOurnalButton />
       </SidebarMenu>
     </SidebarGroup>
