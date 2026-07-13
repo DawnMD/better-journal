@@ -2,6 +2,7 @@ import Providers from "@/components/proivders";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { Geist_Mono, Inter } from "next/font/google";
 import "../lib/orpc.server";
 import "./globals.css";
@@ -34,13 +35,21 @@ export default function RootLayout({
         "font-sans",
         inter.variable,
       )}
+      suppressHydrationWarning
     >
-      <Providers>
-        <body className="min-h-dvh flex flex-col">
-          {children}
-          <Toaster />
-        </body>
-      </Providers>
+      <body className="min-h-dvh flex flex-col">
+        <NextThemesProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Providers>
+            {children}
+            <Toaster />
+          </Providers>
+        </NextThemesProvider>
+      </body>
     </html>
   );
 }
