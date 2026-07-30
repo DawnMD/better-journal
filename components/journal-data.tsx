@@ -1,5 +1,6 @@
 "use client";
 
+import { AiInsightsPanel } from "@/components/ai/ai-insights-panel";
 import { NoteRowActions } from "@/components/note-row-actions";
 import { Button } from "@/components/ui/button";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
@@ -206,6 +207,11 @@ export const JournalData = ({ id }: { id: string }) => {
             )}
           </div>
         </ScrollArea>
+      </div>
+
+      {/* Renders nothing unless AI insights are enabled for this deployment. */}
+      <div className="mt-4">
+        <AiInsightsPanel journalId={id} />
       </div>
     </div>
   );
