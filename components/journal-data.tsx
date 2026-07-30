@@ -1,6 +1,7 @@
 "use client";
 
 import { AiInsightsPanel } from "@/components/ai/ai-insights-panel";
+import { ExportJournalButton } from "@/components/export-journal-button";
 import { NoteRowActions } from "@/components/note-row-actions";
 import { Button } from "@/components/ui/button";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
@@ -114,15 +115,18 @@ export const JournalData = ({ id }: { id: string }) => {
 
   return (
     <div>
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {journal.title}
-        </h1>
-        {journal.description && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            {journal.description}
-          </p>
-        )}
+      <header className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {journal.title}
+          </h1>
+          {journal.description && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {journal.description}
+            </p>
+          )}
+        </div>
+        <ExportJournalButton journalId={id} />
       </header>
       <div className="grid auto-rows-min gap-4 md:grid-cols-12">
         <Card className="md:col-span-4">
