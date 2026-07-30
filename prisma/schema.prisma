@@ -33,9 +33,20 @@ model Note {
   journal   Journal  @relation(fields: [journalId], references: [id], onDelete: Cascade)
   title     String?
   content   Json?
+  /// Content flattened to text, maintained on every write by lib/plate.ts.
+  /// Exists so full-text search and word counts can work on plain text rather
+  /// than walking the Plate JSON — simpler and much faster to index.
+  plainText String?
   tags      Tag[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  /// Generated tsvector over title (weight A) and plainText (weight B), with a
+  /// GIN index. Prisma cannot express `GENERATED ALWAYS AS ... STORED`, so the
+  /// column is created by a hand-written migration and declared Unsupported here
+  /// purely so Prisma knows it exists. It is never read or written through the
+  /// Prisma API — searchRouter queries it with $queryRaw.
+  searchVector Unsupported("tsvector")?
 
   @@index([journalId, createdAt])
 }

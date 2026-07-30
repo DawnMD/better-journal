@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import { SearchPalette } from "@/components/search-palette";
 import {
   SidebarInset,
   SidebarProvider,
@@ -8,6 +9,8 @@ import {
 export default function MainLayout({ children }: LayoutProps<"/">) {
   return (
     <SidebarProvider>
+      {/* Mounted once for the whole signed-in shell so ⌘K works on every page. */}
+      <SearchPalette />
       <AppSidebar />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

@@ -73,7 +73,12 @@ export async function makeJournal(
  */
 export async function makeNote(
   journalId: string,
-  overrides: Partial<{ title: string; content: unknown; createdAt: Date }> = {},
+  overrides: Partial<{
+    title: string;
+    content: unknown;
+    plainText: string;
+    createdAt: Date;
+  }> = {},
 ) {
   return testDb.note.create({
     data: {
@@ -82,6 +87,9 @@ export async function makeNote(
       content: (overrides.content ?? [
         { type: "p", children: [{ text: "" }] },
       ]) as never,
+      // Set explicitly rather than derived, so a test can deliberately create the
+      // stale-plainText state that the backfill script exists to repair.
+      plainText: overrides.plainText ?? "",
       ...(overrides.createdAt ? { createdAt: overrides.createdAt } : {}),
     },
   });

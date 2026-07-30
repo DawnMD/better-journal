@@ -9,7 +9,15 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ChevronRight, HomeIcon, Moon, Sun, Trash2Icon } from "lucide-react";
+import { openSearchPalette } from "@/components/search-palette";
+import {
+  ChevronRight,
+  HomeIcon,
+  Moon,
+  SearchIcon,
+  Sun,
+  Trash2Icon,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import {
@@ -35,6 +43,19 @@ export function NavMain() {
           >
             <HomeIcon />
             <span>Home</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            tooltip={"Search notes"}
+            onClick={() => {
+              setOpenMobile(false);
+              openSearchPalette();
+            }}
+          >
+            <SearchIcon />
+            <span>Search</span>
+            <kbd className="ml-auto text-xs text-muted-foreground">⌘K</kbd>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>

@@ -2,7 +2,7 @@ import { ORPCError } from "@orpc/client";
 import { format } from "date-fns";
 import z from "zod";
 import { resolveTimeZone } from "@/lib/timezone";
-import { emptyDoc } from "@/lib/plate";
+import { emptyDoc, toPlainText } from "@/lib/plate";
 import {
   assertJournalOwned,
   assertNoteOwned,
@@ -44,6 +44,7 @@ export const notesRouter = {
           // A real empty Plate document, not "". The editor reads this straight
           // into `usePlateEditor({ value })`, which needs a block to exist.
           content: emptyDoc(),
+          plainText: "",
           title: defaultTitle,
         },
       });
@@ -156,20 +157,34 @@ export const notesRouter = {
             trash: false,
           },
         },
-        // Pulling the lock state into this same query means the unlock check
-        // below costs no extra round trip.
-        include: { journal: { select: { hashedPassword: true } } },
+        // An explicit select rather than `include`: the joined journal is only
+        // here for the lock check, and selecting fields by name keeps it out of
+        // the response the client caches. It also means adding a column to Note
+        // does not silently start shipping it to the browser.
+        select: {
+          id: true,
+          journalId: true,
+          title: true,
+          content: true,
+          createdAt: true,
+          updatedAt: true,
+          journal: { select: { hashedPassword: true } },
+        },
       });
 
       if (!note) throw new ORPCError("NOT_FOUND");
 
+      // Free — the lock state came back in the query above.
       assertUnlocked(context, note.journalId, note.journal.hashedPassword);
 
-      // The joined journal is an implementation detail of the lock check and
-      // must not leak into the response shape the client caches.
-      const { journal: _journal, ...rest } = note;
-
-      return rest;
+      return {
+        id: note.id,
+        journalId: note.journalId,
+        title: note.title,
+        content: note.content,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+      };
     }),
   saveNote: protectedProcedure
     .input(
@@ -196,6 +211,9 @@ export const notesRouter = {
         },
         data: {
           content: input.content,
+          // Kept in step with content on every save. Postgres regenerates
+          // searchVector from this automatically, so the index cannot fall behind.
+          plainText: toPlainText(input.content),
         },
       });
 

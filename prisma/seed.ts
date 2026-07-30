@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { toPlainText } from "../lib/plate";
 import { PrismaClient } from "./generated/prisma/client";
 
 /**
@@ -114,29 +115,58 @@ function buildEntry() {
   return blocks;
 }
 
+/**
+ * Repairs two things, both idempotent and safe to re-run:
+ *
+ *  1. `content` rows written as `""` before createNote produced a real Plate
+ *     document. The editor cannot place a caret in those.
+ *  2. `plainText` on rows that predate the search migration. Postgres regenerates
+ *     `searchVector` from `plainText`, so a note is invisible to search until this
+ *     runs.
+ *
+ * The text extraction reuses lib/plate.ts rather than reimplementing it in SQL, so
+ * a backfilled row is byte-identical to one written by saveNote.
+ */
 async function normalizeLegacyContent() {
-  // Rows written before createNote produced a real Plate document. Prisma cannot
-  // express "content is a JSON string" in a typed where clause, so this reads the
-  // candidates and filters in JS — fine for a one-off maintenance script.
-  const notes = await db.note.findMany({ select: { id: true, content: true } });
+  // Prisma cannot express "content is a JSON string" in a typed where clause, so
+  // the candidates are read and filtered in JS — fine for a maintenance script.
+  const notes = await db.note.findMany({
+    select: { id: true, content: true, title: true, plainText: true },
+  });
 
-  const broken = notes.filter(
-    (note) => !Array.isArray(note.content) || note.content.length === 0,
-  );
+  let contentFixed = 0;
+  let textFixed = 0;
 
-  if (broken.length === 0) {
-    console.log("[seed] no legacy content rows to normalize");
+  for (const note of notes) {
+    const contentBroken =
+      !Array.isArray(note.content) || note.content.length === 0;
+    const content = contentBroken ? EMPTY_DOC : note.content;
+
+    const expectedText = toPlainText(content);
+    const textStale = note.plainText !== expectedText;
+
+    if (!contentBroken && !textStale) continue;
+
+    await db.note.update({
+      where: { id: note.id },
+      data: {
+        ...(contentBroken ? { content: EMPTY_DOC } : {}),
+        ...(textStale ? { plainText: expectedText } : {}),
+      },
+    });
+
+    if (contentBroken) contentFixed++;
+    if (textStale) textFixed++;
+  }
+
+  if (contentFixed === 0 && textFixed === 0) {
+    console.log("[seed] nothing to normalize");
     return;
   }
 
-  for (const note of broken) {
-    await db.note.update({
-      where: { id: note.id },
-      data: { content: EMPTY_DOC },
-    });
-  }
-
-  console.log(`[seed] normalized ${broken.length} legacy content row(s)`);
+  console.log(
+    `[seed] normalized ${contentFixed} content row(s), backfilled ${textFixed} plainText row(s)`,
+  );
 }
 
 async function seedForUser(userId: string, reset: boolean) {
@@ -162,6 +192,7 @@ async function seedForUser(userId: string, reset: boolean) {
       journalId: string;
       title: string;
       content: unknown;
+      plainText: string;
       createdAt: Date;
       updatedAt: Date;
     }[] = [];
@@ -185,6 +216,8 @@ async function seedForUser(userId: string, reset: boolean) {
           0,
         );
 
+        const content = buildEntry();
+
         notes.push({
           journalId: journal.id,
           title: createdAt.toLocaleString("en-US", {
@@ -194,7 +227,10 @@ async function seedForUser(userId: string, reset: boolean) {
             hour: "numeric",
             minute: "2-digit",
           }),
-          content: buildEntry(),
+          content,
+          // Written alongside content, exactly as saveNote does, so seeded notes
+          // are searchable immediately.
+          plainText: toPlainText(content),
           createdAt,
           updatedAt: createdAt,
         });
