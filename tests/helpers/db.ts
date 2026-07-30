@@ -24,16 +24,31 @@ export const testDb = new PrismaClient({
  * exercising the same code path a signed-in request takes. There is no server to
  * boot and no fetch to mock.
  */
-export function callerFor(userId: string | null) {
+export function callerFor(
+  userId: string | null,
+  /**
+   * Unlock tokens this "request" carries, keyed by journal id — the test-suite
+   * stand-in for the HttpOnly cookies the browser would send. Omit it to
+   * simulate a caller who has not unlocked anything.
+   */
+  unlockTokens: Record<string, string> = {},
+) {
   return createRouterClient(router, {
-    context: { db: testDb, userId },
+    context: {
+      db: testDb,
+      userId,
+      unlockToken: (journalId: string) => unlockTokens[journalId],
+    },
   });
 }
 
-/** Every table, in dependency order. Note cascades from Journal, but be explicit. */
+/**
+ * Every table. CASCADE also clears the implicit `_NoteToTag` join table, which has
+ * no Prisma model of its own.
+ */
 export async function resetDb() {
   await testDb.$executeRawUnsafe(
-    `TRUNCATE TABLE "Note", "Journal" RESTART IDENTITY CASCADE`,
+    `TRUNCATE TABLE "Note", "Journal", "Tag" RESTART IDENTITY CASCADE`,
   );
 }
 

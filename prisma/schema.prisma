@@ -16,6 +16,10 @@ model Journal {
   description String?
   userId      String
   trash       Boolean  @default(false)
+  /// Argon2id hash. Null means the journal is not password-protected.
+  /// A protected journal additionally requires a valid unlock token — see
+  /// server/lib/unlock.ts; the hash alone is not the access check.
+  hashedPassword String?
   notes       Note[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -29,8 +33,23 @@ model Note {
   journal   Journal  @relation(fields: [journalId], references: [id], onDelete: Cascade)
   title     String?
   content   Json?
+  tags      Tag[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([journalId, createdAt])
+}
+
+/// Tags belong to a user, not to a journal, so the same tag can span journals.
+/// Every query must be scoped by userId — the unique constraint is on
+/// ([userId, name]), so two users can independently own a tag called "work".
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  notes     Note[]
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId, name])
 }

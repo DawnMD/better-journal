@@ -3,7 +3,11 @@ import { format } from "date-fns";
 import z from "zod";
 import { resolveTimeZone } from "@/lib/timezone";
 import { emptyDoc } from "@/lib/plate";
-import { assertJournalOwned } from "../lib/authorize";
+import {
+  assertJournalOwned,
+  assertNoteOwned,
+  assertUnlocked,
+} from "../lib/authorize";
 import { dayWindow, monthWindow } from "../lib/day-window";
 import { protectedProcedure } from "../orpc";
 
@@ -152,11 +156,20 @@ export const notesRouter = {
             trash: false,
           },
         },
+        // Pulling the lock state into this same query means the unlock check
+        // below costs no extra round trip.
+        include: { journal: { select: { hashedPassword: true } } },
       });
 
       if (!note) throw new ORPCError("NOT_FOUND");
 
-      return note;
+      assertUnlocked(context, note.journalId, note.journal.hashedPassword);
+
+      // The joined journal is an implementation detail of the lock check and
+      // must not leak into the response shape the client caches.
+      const { journal: _journal, ...rest } = note;
+
+      return rest;
     }),
   saveNote: protectedProcedure
     .input(
@@ -166,9 +179,13 @@ export const notesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      // A single scoped write instead of fetch-then-check: the ownership
-      // predicate and the update are the same statement, so there is no window
-      // in which the journal could change hands between them.
+      // Confirms the journal is not locked. A blind scoped write would let a
+      // caller edit a protected journal's notes straight past the password, since
+      // this endpoint never mentions the journal.
+      await assertNoteOwned(context, input.noteId);
+
+      // The ownership predicate still rides on the write itself, so there is no
+      // window in which the journal could change hands between check and update.
       const { count } = await context.db.note.updateMany({
         where: {
           id: input.noteId,
@@ -200,6 +217,8 @@ export const notesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
+      await assertNoteOwned(context, input.noteId);
+
       const { count } = await context.db.note.updateMany({
         where: {
           id: input.noteId,
@@ -224,6 +243,8 @@ export const notesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
+      await assertNoteOwned(context, input.noteId);
+
       const { count } = await context.db.note.deleteMany({
         where: {
           id: input.noteId,
