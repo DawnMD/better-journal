@@ -31,14 +31,14 @@ export const JournalList = () => {
 
   const { mutate: moveJournalToTrash } = useMutation(
     orpc.journalRouter.moveToTrash.mutationOptions({
-      onSuccess: (data) => {
+      onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: orpc.journalRouter.getAllJournal.queryKey(),
         });
         queryClient.invalidateQueries({
           queryKey: orpc.journalRouter.getTrashedJournal.queryKey(),
         });
-        toast.success(`${data.title} moved to trash`);
+        toast.success("Moved to trash");
       },
       onError: (data) => {
         toast.error(data.message);

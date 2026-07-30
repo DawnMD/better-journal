@@ -2,10 +2,12 @@
 
 import { orpc } from "@/lib/orpc.query";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { NotEditorContent } from "./note-editor-content";
+import { NoteEditorContent } from "./note-editor-content";
 
-export const NoteEditior = ({ noteId }: { noteId: string }) => {
-  const { data, isError } = useSuspenseQuery(
+export const NoteEditor = ({ noteId }: { noteId: string }) => {
+  // No isError branch: useSuspenseQuery throws on failure, which the
+  // [noteId]/error.tsx boundary renders.
+  const { data } = useSuspenseQuery(
     orpc.notesRouter.getNoteById.queryOptions({
       input: {
         noteId,
@@ -13,9 +15,7 @@ export const NoteEditior = ({ noteId }: { noteId: string }) => {
     }),
   );
 
-  if (isError) {
-    return <div>Something went wrong</div>;
-  }
-
-  return <NotEditorContent key={data.id} note={data} />;
+  // Keyed by note id so switching notes remounts the editor rather than trying
+  // to swap Plate's initial value underneath it.
+  return <NoteEditorContent key={data.id} note={data} />;
 };

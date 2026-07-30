@@ -1,6 +1,6 @@
 "use client";
 
-import { CreateNewJOurnalButton } from "@/components/create-new-journal-button";
+import { CreateNewJournalButton } from "@/components/create-new-journal-button";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -47,7 +47,7 @@ export function NavMain() {
             <span>Trash</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <CreateNewJOurnalButton />
+        <CreateNewJournalButton />
         <DropdownMenu>
           <SidebarMenuItem>
             <DropdownMenuTrigger

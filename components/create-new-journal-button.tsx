@@ -41,7 +41,7 @@ const formSchema = z.object({
   description: z.string().optional(),
 });
 
-export const CreateNewJOurnalButton = () => {
+export const CreateNewJournalButton = () => {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const { setOpenMobile } = useSidebar();
@@ -156,104 +156,6 @@ export const CreateNewJOurnalButton = () => {
                   </Field>
                 )}
               />
-              {/* <Controller
-                name="hidden"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field
-                    orientation="horizontal"
-                    data-invalid={fieldState.invalid}
-                  >
-                    <FieldContent>
-                      <FieldLabel htmlFor="journal-hidden-mode">
-                        Hidden journal
-                      </FieldLabel>
-                      <FieldDescription>
-                        Hide journal on creation
-                      </FieldDescription>
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </FieldContent>
-                    <Switch
-                      id="journal-hidden-mode"
-                      name={field.name}
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      aria-invalid={fieldState.invalid}
-                    />
-                  </Field>
-                )}
-              /> */}
-              {/* <Controller
-                name="passwordProtected"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field
-                    orientation="horizontal"
-                    data-invalid={fieldState.invalid}
-                  >
-                    <FieldContent>
-                      <FieldLabel htmlFor="journal-password-mode">
-                        Protect with Passord
-                      </FieldLabel>
-                    </FieldContent>
-                    <Switch
-                      id="journal-password-mode"
-                      name={field.name}
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      aria-invalid={fieldState.invalid}
-                    />
-                  </Field>
-                )}
-              /> */}
-              {/* {passwordProtected && (
-                <>
-                  <Controller
-                    name="password"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="journal-password">
-                          Journal Passord
-                        </FieldLabel>
-                        <Input
-                          {...field}
-                          id="journal-password"
-                          aria-invalid={fieldState.invalid}
-                          autoComplete="off"
-                          type="password"
-                        />
-                        {fieldState.invalid && (
-                          <FieldError errors={[fieldState.error]} />
-                        )}
-                      </Field>
-                    )}
-                  />
-                  <Controller
-                    name="confirmPassword"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="confirm-journal-password">
-                          Confirm journal Passord
-                        </FieldLabel>
-                        <Input
-                          {...field}
-                          id="confirm-journal-password"
-                          aria-invalid={fieldState.invalid}
-                          autoComplete="off"
-                          type="password"
-                        />
-                        {fieldState.invalid && (
-                          <FieldError errors={[fieldState.error]} />
-                        )}
-                      </Field>
-                    )}
-                  />
-                </>
-              )} */}
             </FieldGroup>
             <DialogFooter>
               <DialogClose

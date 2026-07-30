@@ -1,5 +1,6 @@
 "use client";
 
+import { NoteTitle } from "@/components/note-title";
 import { BlockquoteElement } from "@/components/ui/blockquote-node";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 import { FixedToolbar } from "@/components/ui/fixed-toolbar";
@@ -8,6 +9,7 @@ import { HighlightLeaf } from "@/components/ui/highlight-node";
 import { MarkToolbarButton } from "@/components/ui/mark-toolbar-button";
 import { ToolbarButton } from "@/components/ui/toolbar";
 import { orpc } from "@/lib/orpc.query";
+import { normalizeValue } from "@/lib/plate";
 import {
   BlockquotePlugin,
   BoldPlugin,
@@ -28,12 +30,17 @@ import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 
-export const NotEditorContent = ({
+export const NoteEditorContent = ({
   note,
 }: {
   note: Awaited<ReturnType<typeof orpc.notesRouter.getNoteById.call>>;
 }) => {
   const queryClient = useQueryClient();
+
+  // Historic rows may hold "" rather than a Plate document; normalizeValue turns
+  // those into a real empty paragraph so the editor has something to focus.
+  const initialValue = normalizeValue(note.content) as Value;
+
   const editor = usePlateEditor({
     plugins: [
       BoldPlugin,
@@ -47,23 +54,26 @@ export const NotEditorContent = ({
       BlockquotePlugin.withComponent(BlockquoteElement),
       HighlightPlugin.withComponent(HighlightLeaf),
     ],
-    value: note.content as Value,
+    value: initialValue,
   });
 
   const { mutateAsync: saveNote } = useMutation(
     orpc.notesRouter.saveNote.mutationOptions({
       onSuccess(updated) {
+        // Patch only the field that changed. saveNote used to return the joined
+        // journal row, and writing that whole object here overwrote the
+        // getNoteById cache entry with a different shape.
         queryClient.setQueryData(
           orpc.notesRouter.getNoteById.queryKey({
             input: { noteId: note.id },
           }),
-          updated,
+          (prev) => (prev ? { ...prev, content: updated.content } : prev),
         );
       },
     }),
   );
 
-  const lastSaved = useRef<Value>(structuredClone(note.content as Value));
+  const lastSaved = useRef<Value>(structuredClone(initialValue));
 
   const handleSave = useCallback(async () => {
     const currentValue = structuredClone(editor.children);
@@ -97,6 +107,7 @@ export const NotEditorContent = ({
 
   return (
     <div className="container">
+      <NoteTitle noteId={note.id} title={note.title ?? ""} />
       <Plate
         editor={editor}
         onValueChange={() => {

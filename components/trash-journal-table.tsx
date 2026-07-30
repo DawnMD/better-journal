@@ -22,7 +22,7 @@ import { format } from "date-fns";
 import { Fragment, useState } from "react";
 
 export const TrashedJournalTable = () => {
-  const { data, isError } = useSuspenseQuery(
+  const { data } = useSuspenseQuery(
     orpc.journalRouter.getTrashedJournal.queryOptions(),
   );
 
@@ -41,9 +41,8 @@ export const TrashedJournalTable = () => {
     state: { expanded },
   });
 
-  if (isError || !data) {
-    return <p>Something went wrong</p>;
-  }
+  // No isError branch: useSuspenseQuery throws, so a failure is caught by the
+  // error.tsx boundary rather than reported through this hook's return value.
 
   return (
     <Table>

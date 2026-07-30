@@ -1,7 +1,26 @@
 import { ORPCError } from "@orpc/client";
-import { addDays, format, parseISO, startOfDay } from "date-fns";
+import { format } from "date-fns";
 import z from "zod";
+import { resolveTimeZone } from "@/lib/timezone";
+import { emptyDoc } from "@/lib/plate";
+import { assertJournalOwned } from "../lib/authorize";
+import { dayWindow, monthWindow } from "../lib/day-window";
 import { protectedProcedure } from "../orpc";
+
+/** Plate block node — `children` is recursive, so it is validated loosely below the top level. */
+const plateValue = z.array(
+  z.object({
+    type: z.string().optional(),
+    children: z.array(z.any()),
+  }),
+);
+
+/**
+ * The reader's IANA timezone, e.g. `Asia/Kolkata`. Supplied by the client from
+ * `Intl.DateTimeFormat().resolvedOptions().timeZone`; validated server-side in
+ * `resolveTimeZone`, which falls back to UTC rather than throwing.
+ */
+const timeZoneInput = z.string().optional();
 
 export const notesRouter = {
   createNote: protectedProcedure
@@ -11,11 +30,16 @@ export const notesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
+      await assertJournalOwned(context, input.journalId);
+
       const defaultTitle = format(new Date(), "MMMM do, yyyy 'at' h:mm a");
+
       return context.db.note.create({
         data: {
           journalId: input.journalId,
-          content: "",
+          // A real empty Plate document, not "". The editor reads this straight
+          // into `usePlateEditor({ value })`, which needs a block to exist.
+          content: emptyDoc(),
           title: defaultTitle,
         },
       });
@@ -25,12 +49,19 @@ export const notesRouter = {
       z.object({
         journalId: z.string(),
         date: z.string(),
+        timeZone: timeZoneInput,
       }),
     )
     .handler(async ({ context, input }) => {
-      const date = parseISO(input.date);
-      const start = startOfDay(date);
-      const end = addDays(start, 1);
+      await assertJournalOwned(context, input.journalId);
+
+      // The day boundary is computed in the reader's zone, not the server's.
+      // On Vercel the server is UTC, which would file a note written at 02:00
+      // IST under the previous day.
+      const { start, end } = dayWindow(
+        input.date,
+        resolveTimeZone(input.timeZone),
+      );
 
       return await context.db.note.findMany({
         where: {
@@ -50,6 +81,59 @@ export const notesRouter = {
         },
       });
     }),
+  /**
+   * Per-day note counts for the calendar badges, for one month only.
+   *
+   * Replaces loading every note the journal has ever held into memory just to
+   * count them. Aggregation happens in Postgres and is bounded by the visible
+   * month, so the cost stops growing with journal size.
+   *
+   * Raw SQL because the bucketing has to happen in the reader's timezone, and
+   * Prisma's `groupBy` cannot express a timezone-shifted date truncation.
+   * `createdAt` is `TIMESTAMP(3)` (naive, holding UTC), so it is first labelled
+   * UTC and then converted — a single `AT TIME ZONE` would read the stored value
+   * as though it were already local and shift it the wrong way.
+   */
+  getNoteCountsByMonth: protectedProcedure
+    .input(
+      z.object({
+        journalId: z.string(),
+        /** `yyyy-MM` */
+        month: z.string(),
+        timeZone: timeZoneInput,
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      // Raw SQL bypasses Prisma's relation filters, so ownership is asserted
+      // separately here rather than being a predicate on the query.
+      await assertJournalOwned(context, input.journalId);
+
+      const zone = resolveTimeZone(input.timeZone);
+      const { start, end } = monthWindow(input.month, zone);
+
+      const rows = await context.db.$queryRaw<
+        { day: string; count: number }[]
+      >`
+        SELECT
+          to_char(
+            ("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE ${zone})::date,
+            'YYYY-MM-DD'
+          ) AS day,
+          COUNT(*)::int AS count
+        FROM "Note"
+        WHERE "journalId" = ${input.journalId}
+          AND "createdAt" >= ${start}
+          AND "createdAt" < ${end}
+        GROUP BY 1
+        ORDER BY 1
+      `;
+
+      // Shaped as a lookup so the calendar can index by day key directly.
+      return rows.reduce<Record<string, number>>((acc, row) => {
+        acc[row.day] = row.count;
+        return acc;
+      }, {});
+    }),
   getNoteById: protectedProcedure
     .input(
       z.object({
@@ -57,28 +141,20 @@ export const notesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      const note = await context.db.note.findUnique({
+      // Ownership is part of the query rather than a check on the result: a note
+      // in someone else's journal is simply not found. See assertJournalOwned
+      // for why NOT_FOUND and not FORBIDDEN.
+      const note = await context.db.note.findFirst({
         where: {
           id: input.noteId,
-          AND: {
-            journal: {
-              trash: false,
-            },
-          },
-        },
-        include: {
           journal: {
-            select: {
-              userId: true,
-            },
+            userId: context.userId,
+            trash: false,
           },
         },
       });
 
       if (!note) throw new ORPCError("NOT_FOUND");
-
-      if (note.journal.userId !== context.userId)
-        throw new ORPCError("UNAUTHORIZED");
 
       return note;
     }),
@@ -86,25 +162,80 @@ export const notesRouter = {
     .input(
       z.object({
         noteId: z.string(),
-        content: z.array(
-          z.object({
-            type: z.string().optional(),
-            children: z.array(z.any()),
-          }),
-        ),
+        content: plateValue,
       }),
     )
     .handler(async ({ context, input }) => {
-      return await context.db.note.update({
+      // A single scoped write instead of fetch-then-check: the ownership
+      // predicate and the update are the same statement, so there is no window
+      // in which the journal could change hands between them.
+      const { count } = await context.db.note.updateMany({
+        where: {
+          id: input.noteId,
+          journal: {
+            userId: context.userId,
+            trash: false,
+          },
+        },
         data: {
           content: input.content,
         },
+      });
+
+      if (count === 0) throw new ORPCError("NOT_FOUND");
+
+      // Only the note, and only what changed. Returning the joined journal row
+      // here previously let the caller write a mismatched shape into the
+      // getNoteById cache.
+      return {
+        id: input.noteId,
+        content: input.content,
+      };
+    }),
+  renameNote: protectedProcedure
+    .input(
+      z.object({
+        noteId: z.string(),
+        title: z.string().trim().min(1).max(200),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const { count } = await context.db.note.updateMany({
         where: {
           id: input.noteId,
+          journal: {
+            userId: context.userId,
+            trash: false,
+          },
         },
-        include: {
-          journal: true,
+        data: {
+          title: input.title,
         },
       });
+
+      if (count === 0) throw new ORPCError("NOT_FOUND");
+
+      return { id: input.noteId, title: input.title };
+    }),
+  deleteNote: protectedProcedure
+    .input(
+      z.object({
+        noteId: z.string(),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const { count } = await context.db.note.deleteMany({
+        where: {
+          id: input.noteId,
+          journal: {
+            userId: context.userId,
+            trash: false,
+          },
+        },
+      });
+
+      if (count === 0) throw new ORPCError("NOT_FOUND");
+
+      return { id: input.noteId };
     }),
 };
