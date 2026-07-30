@@ -136,3 +136,52 @@
     @apply font-sans;
   }
 }
+/*
+ * Chart color tokens.
+ *
+ * Every value here is validated, not chosen by eye. The sequential blue ramp was
+ * run through the data-viz validator in ordinal mode against the *actual* card
+ * surfaces the dashboard renders on (#ffffff light, #171717 dark) and passes
+ * monotone lightness, adjacent-delta-L, light-end contrast and single-hue in both:
+ *
+ *   node scripts/validate_palette.js "#86b6ef,#5598e7,#2a78d6,#1c5cab" \
+ *     --mode light --surface "#ffffff" --ordinal
+ *   node scripts/validate_palette.js "#184f95,#256abf,#3987e5,#86b6ef" \
+ *     --mode dark  --surface "#171717" --ordinal
+ *
+ * The dark ramp is not the light one reversed — it is the same blue hue re-stepped
+ * for a dark surface, so "more" always means "further from the background". Simply
+ * flipping the light ramp would put near-white on a dark card for a single note and
+ * make an empty year look busier than a full one.
+ *
+ * Real CSS rather than a <style> tag inside a component: React does not treat an
+ * inline <style> as a hoistable stylesheet without href/precedence, and this is
+ * static anyway.
+ */
+:root {
+  --viz-level-0: #e1e0d9;
+  --viz-level-1: #86b6ef;
+  --viz-level-2: #5598e7;
+  --viz-level-3: #2a78d6;
+  --viz-level-4: #1c5cab;
+
+  --viz-series-1: #2a78d6;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-muted: #898781;
+  --viz-surface: #ffffff;
+}
+
+.dark {
+  --viz-level-0: #2c2c2a;
+  --viz-level-1: #184f95;
+  --viz-level-2: #256abf;
+  --viz-level-3: #3987e5;
+  --viz-level-4: #86b6ef;
+
+  --viz-series-1: #3987e5;
+  --viz-grid: #2c2c2a;
+  --viz-axis: #383835;
+  --viz-muted: #898781;
+  --viz-surface: #171717;
+}
