@@ -101,6 +101,14 @@ export const notesRouter = {
           title: true,
           createdAt: true,
           id: true,
+          // Ridden along rather than fetched separately, and not an N+1: Prisma
+          // resolves an implicit m2m as one extra round trip for the whole page
+          // (`WHERE "A" IN (...)`, served by _NoteToTag_AB_pkey), so a 42-day
+          // grid goes from one query to two no matter how many notes it holds.
+          // Fetching them here is also what lets the calendar filter run over
+          // this one array, so the cells, the counts and the "+N more" cannot
+          // disagree about which notes are on screen.
+          tags: { select: { id: true, name: true }, orderBy: { name: "asc" } },
         },
         // Ascending, unlike the old day list: the time grid reads top-down, and
         // `packEvents` needs chronological order anyway.

@@ -1,4 +1,6 @@
+import { ORPCError } from "@orpc/client";
 import { HL_END, HL_START } from "@/lib/search";
+import { MAX_TAG_FILTER } from "@/lib/tags";
 import z from "zod";
 import { assertJournalOwned } from "../lib/authorize";
 import { protectedProcedure } from "../orpc";
@@ -84,12 +86,25 @@ export function parseSearchQuery(raw: string): ParsedQuery {
 export const searchRouter = {
   search: protectedProcedure
     .input(
-      z.object({
-        query: z.string().trim().min(1).max(200),
-        /** Restrict to one journal. Omit to search everything the user owns. */
-        journalId: z.string().optional(),
-        limit: z.number().int().min(1).max(50).default(20),
-      }),
+      z
+        .object({
+          /**
+           * May be empty, as long as tags are given. Picking a tag chip in the
+           * palette clears the text: the text was how you *found* the facet, not
+           * part of what you were searching for.
+           */
+          query: z.string().trim().max(200).default(""),
+          /** Restrict to one journal. Omit to search everything the user owns. */
+          journalId: z.string().optional(),
+          /** AND semantics — a note must carry every one of these. */
+          tagIds: z.array(z.string()).max(MAX_TAG_FILTER).optional(),
+          limit: z.number().int().min(1).max(50).default(20),
+        })
+        .refine(
+          (value) =>
+            value.query.length > 0 || (value.tagIds?.length ?? 0) > 0,
+          { message: "Provide a query, a tag, or both." },
+        ),
     )
     .handler(async ({ context, input }) => {
       if (input.journalId) {
@@ -97,6 +112,21 @@ export const searchRouter = {
         await assertJournalOwned(context, input.journalId);
       }
 
+      const tagIds = [...new Set(input.tagIds ?? [])];
+
+      if (tagIds.length > 0) {
+        // Mirrors removeTagFromNote. Not load-bearing for confidentiality — the
+        // results below are user-scoped regardless — but it turns "a tag id that
+        // isn't yours" into an explicit refusal instead of a silent empty list,
+        // which is the difference between a bug report and a mystery.
+        const owned = await context.db.tag.count({
+          where: { id: { in: tagIds }, userId: context.userId },
+        });
+
+        if (owned !== tagIds.length) throw new ORPCError("NOT_FOUND");
+      }
+
+      const hasQuery = input.query.length > 0;
       const parsed = parseSearchQuery(input.query);
       const isPrefix = parsed.mode === "prefix";
 
@@ -112,9 +142,24 @@ export const searchRouter = {
       // would return snippets from a locked journal, which is a read straight
       // through the password. Matching but redacting would still leak that a term
       // appears inside.
+      //
+      // Tag filtering extends this statement rather than adding a second
+      // "browse by tag" query. The three security predicates above exist in
+      // exactly one place, and a parallel branch is precisely how one of them
+      // gets left out of the copy. So when there is no text, `tsq` is NULL and
+      // the match, the snippet and the rank each degrade in place: everything
+      // matches, the snippet becomes a plain excerpt, and the rank flattens to 0
+      // so the existing ORDER BY falls through to `createdAt DESC` on its own.
+      //
+      // The tag clause has AND semantics, expressed by counting a note's matched
+      // join rows and requiring all of them. In `_NoteToTag`, "A" is the Note and
+      // "B" is the Tag — per the foreign keys in the add_tags migration, and
+      // reversing them returns zero rows silently rather than failing. The
+      // `_NoteToTag_B_index` index serves the `B = ANY(...)` scan.
       const rows = await context.db.$queryRaw<SearchRow[]>`
         WITH q AS (
           SELECT CASE
+            WHEN NOT ${hasQuery}::boolean THEN NULL
             WHEN ${isPrefix}::boolean
               THEN to_tsquery('english', ${parsed.value})
             ELSE websearch_to_tsquery('english', ${parsed.value})
@@ -126,13 +171,19 @@ export const searchRouter = {
           n."journalId",
           j."title" AS "journalTitle",
           n."createdAt",
-          ts_headline(
-            'english',
-            coalesce(n."plainText", ''),
-            q.tsq,
-            ${HEADLINE_OPTIONS}
-          ) AS "snippet",
-          ts_rank(n."searchVector", q.tsq) AS "rank"
+          CASE
+            WHEN q.tsq IS NULL THEN left(coalesce(n."plainText", ''), 160)
+            ELSE ts_headline(
+              'english',
+              coalesce(n."plainText", ''),
+              q.tsq,
+              ${HEADLINE_OPTIONS}
+            )
+          END AS "snippet",
+          CASE
+            WHEN q.tsq IS NULL THEN 0
+            ELSE ts_rank(n."searchVector", q.tsq)
+          END AS "rank"
         FROM "Note" n
         JOIN "Journal" j ON j."id" = n."journalId"
         CROSS JOIN q
@@ -140,7 +191,14 @@ export const searchRouter = {
           AND j."trash" = false
           AND j."hashedPassword" IS NULL
           AND (${input.journalId ?? null}::text IS NULL OR n."journalId" = ${input.journalId ?? null})
-          AND n."searchVector" @@ q.tsq
+          AND (q.tsq IS NULL OR n."searchVector" @@ q.tsq)
+          AND (${tagIds.length}::int = 0 OR n."id" IN (
+            SELECT nt."A"
+            FROM "_NoteToTag" nt
+            WHERE nt."B" = ANY(${tagIds}::text[])
+            GROUP BY nt."A"
+            HAVING count(*) = ${tagIds.length}::int
+          ))
         ORDER BY "rank" DESC, n."createdAt" DESC
         LIMIT ${input.limit}
       `;

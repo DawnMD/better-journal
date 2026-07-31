@@ -14,6 +14,19 @@ export function isNotFoundError(error: unknown): boolean {
 }
 
 /**
+ * True for the `CONFLICT` `renameTag` throws when the new name is already
+ * taken.
+ *
+ * That error is not a failure so much as a question: it carries
+ * `{ existingTagId, noteCount }` so the caller can offer to merge and call
+ * again. See the procedure for why it is neither a silent merge nor a bare
+ * rejection.
+ */
+export function isConflictError(error: unknown): boolean {
+  return error instanceof ORPCError && error.code === "CONFLICT";
+}
+
+/**
  * True for any ORPC error in the 4xx range — a settled answer about *this*
  * request (missing, locked, rate-limited, malformed), not a transient failure
  * that a second attempt could resolve.
