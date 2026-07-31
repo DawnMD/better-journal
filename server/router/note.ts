@@ -1,14 +1,14 @@
 import { ORPCError } from "@orpc/client";
 import { format } from "date-fns";
 import z from "zod";
-import { resolveTimeZone } from "@/lib/timezone";
+import { resolveTimeZone, zonedDayAndMinutes } from "@/lib/timezone";
 import { emptyDoc, toPlainText } from "@/lib/plate";
 import {
   assertJournalOwned,
   assertNoteOwned,
   assertUnlocked,
 } from "../lib/authorize";
-import { dayWindow, monthWindow } from "../lib/day-window";
+import { rangeWindow } from "../lib/day-window";
 import { protectedProcedure } from "../orpc";
 
 /** Plate block node — `children` is recursive, so it is validated loosely below the top level. */
@@ -49,26 +49,47 @@ export const notesRouter = {
         },
       });
     }),
-  getAllNotesByIdAndDate: protectedProcedure
+  /**
+   * Every note the calendar's visible grid covers, in one round trip.
+   *
+   * The single read behind all three views — a month grid is a 42-day range, a
+   * week is 7, a day is 1 — so switching view or paging a month is one query,
+   * not a list query plus a counts query that could disagree with it. Per-day
+   * counts are no longer a separate aggregate at all: the grid has the notes, so
+   * it can count them, and a badge that contradicts the cell under it stops
+   * being expressible.
+   *
+   * Still bounded. `rangeWindow` caps the span at six weeks, which is what keeps
+   * this from degenerating into "load the whole journal" the way the original
+   * client-side counting did.
+   *
+   * `day` and `minutes` are computed here, in the same zone the window was cut
+   * in, rather than left for the browser to read off `createdAt`. The client
+   * renders whichever zone it *asked* for; deriving the position from a local
+   * `Date` getter would answer for the browser's instead, and the two are only
+   * usually the same.
+   */
+  getNotesInRange: protectedProcedure
     .input(
       z.object({
         journalId: z.string(),
-        date: z.string(),
+        /** `yyyy-MM-dd`, inclusive. */
+        start: z.string(),
+        /** `yyyy-MM-dd`, inclusive. */
+        end: z.string(),
         timeZone: timeZoneInput,
       }),
     )
     .handler(async ({ context, input }) => {
       await assertJournalOwned(context, input.journalId);
 
-      // The day boundary is computed in the reader's zone, not the server's.
+      // The day boundaries are computed in the reader's zone, not the server's.
       // On Vercel the server is UTC, which would file a note written at 02:00
       // IST under the previous day.
-      const { start, end } = dayWindow(
-        input.date,
-        resolveTimeZone(input.timeZone),
-      );
+      const zone = resolveTimeZone(input.timeZone);
+      const { start, end } = rangeWindow(input.start, input.end, zone);
 
-      return await context.db.note.findMany({
+      const notes = await context.db.note.findMany({
         where: {
           journalId: input.journalId,
           createdAt: {
@@ -81,63 +102,17 @@ export const notesRouter = {
           createdAt: true,
           id: true,
         },
+        // Ascending, unlike the old day list: the time grid reads top-down, and
+        // `packEvents` needs chronological order anyway.
         orderBy: {
-          createdAt: "desc",
+          createdAt: "asc",
         },
       });
-    }),
-  /**
-   * Per-day note counts for the calendar badges, for one month only.
-   *
-   * Replaces loading every note the journal has ever held into memory just to
-   * count them. Aggregation happens in Postgres and is bounded by the visible
-   * month, so the cost stops growing with journal size.
-   *
-   * Raw SQL because the bucketing has to happen in the reader's timezone, and
-   * Prisma's `groupBy` cannot express a timezone-shifted date truncation.
-   * `createdAt` is `TIMESTAMP(3)` (naive, holding UTC), so it is first labelled
-   * UTC and then converted — a single `AT TIME ZONE` would read the stored value
-   * as though it were already local and shift it the wrong way.
-   */
-  getNoteCountsByMonth: protectedProcedure
-    .input(
-      z.object({
-        journalId: z.string(),
-        /** `yyyy-MM` */
-        month: z.string(),
-        timeZone: timeZoneInput,
-      }),
-    )
-    .handler(async ({ context, input }) => {
-      // Raw SQL bypasses Prisma's relation filters, so ownership is asserted
-      // separately here rather than being a predicate on the query.
-      await assertJournalOwned(context, input.journalId);
 
-      const zone = resolveTimeZone(input.timeZone);
-      const { start, end } = monthWindow(input.month, zone);
-
-      const rows = await context.db.$queryRaw<
-        { day: string; count: number }[]
-      >`
-        SELECT
-          to_char(
-            ("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE ${zone})::date,
-            'YYYY-MM-DD'
-          ) AS day,
-          COUNT(*)::int AS count
-        FROM "Note"
-        WHERE "journalId" = ${input.journalId}
-          AND "createdAt" >= ${start}
-          AND "createdAt" < ${end}
-        GROUP BY 1
-        ORDER BY 1
-      `;
-
-      // Shaped as a lookup so the calendar can index by day key directly.
-      return rows.reduce<Record<string, number>>((acc, row) => {
-        acc[row.day] = row.count;
-        return acc;
-      }, {});
+      return notes.map((note) => ({
+        ...note,
+        ...zonedDayAndMinutes(note.createdAt, zone),
+      }));
     }),
   getNoteById: protectedProcedure
     .input(

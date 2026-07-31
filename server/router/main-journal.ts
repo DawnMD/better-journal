@@ -64,9 +64,9 @@ export const journalRouter = {
     }),
   /**
    * The journal itself. Notes are deliberately *not* included: the calendar
-   * badges that used to need them are served by
-   * `notesRouter.getNoteCountsByMonth`, which aggregates in Postgres for one
-   * month instead of loading every note the journal has ever held.
+   * that used to need them is served by `notesRouter.getNotesInRange`, which is
+   * bounded to the days actually on screen instead of loading every note the
+   * journal has ever held.
    */
   getJournalById: protectedProcedure
     .input(

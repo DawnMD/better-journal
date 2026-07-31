@@ -1,6 +1,6 @@
 import { resolveTimeZone } from "@/lib/timezone";
 import { TZDate } from "@date-fns/tz";
-import { addDays, addMonths } from "date-fns";
+import { addDays } from "date-fns";
 
 /**
  * Day-boundary arithmetic, in one place.
@@ -18,7 +18,6 @@ import { addDays, addMonths } from "date-fns";
  */
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const ISO_MONTH = /^\d{4}-\d{2}$/;
 
 export type Window = { start: Date; end: Date };
 
@@ -47,21 +46,48 @@ export function dayWindow(dateISO: string, timeZone: string): Window {
 }
 
 /**
- * The UTC instant range covering the calendar month `monthISO` (`yyyy-MM`) in
- * `timeZone`. Bounds the calendar-badge query to the month actually on screen.
+ * The widest span `rangeWindow` will serve.
+ *
+ * Six weeks — the tallest month grid the calendar draws. The bound is what keeps
+ * the range query's cost fixed: without it, a caller could ask one procedure for
+ * every note a journal has ever held, which is the unbounded read the per-month
+ * aggregation was introduced to remove.
  */
-export function monthWindow(monthISO: string, timeZone: string): Window {
-  if (!ISO_MONTH.test(monthISO)) {
-    throw new Error(`Expected a yyyy-MM month, received "${monthISO}"`);
+export const MAX_RANGE_DAYS = 42;
+
+/**
+ * The UTC instant range covering the calendar days `startISO`..`endISO`
+ * *inclusive* (both `yyyy-MM-dd`) as they are lived in `timeZone`.
+ *
+ * Inclusive at both ends because that is how a calendar states its own extent —
+ * "Jun 28 through Aug 8" is one visible month grid. The instants it returns are
+ * still half-open, for the same reason `dayWindow`'s are.
+ */
+export function rangeWindow(
+  startISO: string,
+  endISO: string,
+  timeZone: string,
+): Window {
+  const { start } = dayWindow(startISO, timeZone);
+  const { end } = dayWindow(endISO, timeZone);
+
+  if (end <= start) {
+    throw new Error(`Range "${startISO}".."${endISO}" ends before it starts`);
   }
 
-  const zone = resolveTimeZone(timeZone);
-  const [year, month] = monthISO.split("-").map(Number);
+  // Rounded, not floored: a span containing a DST transition is a whole number
+  // of days plus or minus an hour, and flooring would let a 42-day grid that
+  // crosses one measure 41.96 days on one side of the year and 42.04 on the
+  // other. Rounding gives the same answer either way.
+  const days = Math.round((end.getTime() - start.getTime()) / 86_400_000);
 
-  const start = new TZDate(year, month - 1, 1, 0, 0, 0, 0, zone);
-  const end = addMonths(start, 1);
+  if (days > MAX_RANGE_DAYS) {
+    throw new Error(
+      `Range "${startISO}".."${endISO}" spans ${days} days, over the ${MAX_RANGE_DAYS}-day limit`,
+    );
+  }
 
-  return { start: new Date(start.getTime()), end: new Date(end.getTime()) };
+  return { start, end };
 }
 
 /** The UTC instant range covering `year` in `timeZone`. Used by the activity heatmap. */
