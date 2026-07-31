@@ -52,22 +52,12 @@ describe("notesRouter — cross-tenant access", () => {
     expect(count).toBe(1);
   });
 
-  it("getAllNotesByIdAndDate does not leak another user's note titles", async () => {
+  it("getNotesInRange does not leak another user's note titles or activity", async () => {
     await expectOrpcError(
-      asB().notesRouter.getAllNotesByIdAndDate({
+      asB().notesRouter.getNotesInRange({
         journalId: journalA.id,
-        date: "2026-07-30",
-        timeZone: "UTC",
-      }),
-      "NOT_FOUND",
-    );
-  });
-
-  it("getNoteCountsByMonth does not leak another user's activity", async () => {
-    await expectOrpcError(
-      asB().notesRouter.getNoteCountsByMonth({
-        journalId: journalA.id,
-        month: "2026-07",
+        start: "2026-06-28",
+        end: "2026-08-08",
         timeZone: "UTC",
       }),
       "NOT_FOUND",
@@ -168,9 +158,10 @@ describe("notesRouter — trashed journals are inaccessible", () => {
       "NOT_FOUND",
     );
     await expectOrpcError(
-      a.notesRouter.getAllNotesByIdAndDate({
+      a.notesRouter.getNotesInRange({
         journalId: journal.id,
-        date: "2026-07-30",
+        start: "2026-07-30",
+        end: "2026-07-30",
         timeZone: "UTC",
       }),
       "NOT_FOUND",

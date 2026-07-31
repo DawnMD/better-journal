@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   dayWindow,
-  monthWindow,
+  MAX_RANGE_DAYS,
+  rangeWindow,
   yearWindow,
 } from "@/server/lib/day-window";
 import {
@@ -9,6 +10,7 @@ import {
   monthKeyInTimeZone,
   isValidTimeZone,
   resolveTimeZone,
+  zonedDayAndMinutes,
 } from "@/lib/timezone";
 
 const hours = (start: Date, end: Date) =>
@@ -103,32 +105,139 @@ describe("dayWindow", () => {
   });
 });
 
-describe("monthWindow", () => {
-  it("covers a whole month in the given zone", () => {
-    const { start, end } = monthWindow("2026-07", "Asia/Kolkata");
+describe("rangeWindow", () => {
+  it("is inclusive of both named days", () => {
+    const { start, end } = rangeWindow("2026-06-28", "2026-08-08", "UTC");
+
+    expect(start.toISOString()).toBe("2026-06-28T00:00:00.000Z");
+    // Aug 8 is *in* the range, so the window runs to the midnight after it.
+    expect(end.toISOString()).toBe("2026-08-09T00:00:00.000Z");
+  });
+
+  it("covers a single day when both ends are the same", () => {
+    const { start, end } = rangeWindow("2026-07-30", "2026-07-30", "UTC");
+    const day = dayWindow("2026-07-30", "UTC");
+
+    expect(start.toISOString()).toBe(day.start.toISOString());
+    expect(end.toISOString()).toBe(day.end.toISOString());
+  });
+
+  it("cuts its bounds in the reader's zone, not the server's", () => {
+    const { start, end } = rangeWindow("2026-07-01", "2026-07-07", "Asia/Kolkata");
 
     expect(start.toISOString()).toBe("2026-06-30T18:30:00.000Z");
-    expect(end.toISOString()).toBe("2026-07-31T18:30:00.000Z");
+    expect(end.toISOString()).toBe("2026-07-07T18:30:00.000Z");
   });
 
   it("handles a December-to-January rollover", () => {
-    const { start, end } = monthWindow("2026-12", "UTC");
+    const { start, end } = rangeWindow("2026-12-27", "2027-01-02", "UTC");
 
-    expect(start.toISOString()).toBe("2026-12-01T00:00:00.000Z");
-    expect(end.toISOString()).toBe("2027-01-01T00:00:00.000Z");
+    expect(start.toISOString()).toBe("2026-12-27T00:00:00.000Z");
+    expect(end.toISOString()).toBe("2027-01-03T00:00:00.000Z");
   });
 
-  it("handles February in a leap year", () => {
-    const { start, end } = monthWindow("2028-02", "UTC");
+  it("accepts a full six-week month grid", () => {
+    // 42 days inclusive — the widest grid the calendar draws, and exactly the cap.
+    const { start, end } = rangeWindow("2026-06-28", "2026-08-08", "UTC");
 
-    expect(start.toISOString()).toBe("2028-02-01T00:00:00.000Z");
-    expect(end.toISOString()).toBe("2028-03-01T00:00:00.000Z");
-    expect(hours(start, end) / 24).toBe(29);
+    expect(hours(start, end) / 24).toBe(MAX_RANGE_DAYS);
   });
 
-  it("rejects a malformed month", () => {
-    expect(() => monthWindow("2026-7", "UTC")).toThrow(/yyyy-MM/);
-    expect(() => monthWindow("2026-07-01", "UTC")).toThrow(/yyyy-MM/);
+  it("accepts a six-week grid that crosses a DST transition", () => {
+    // The regression a naive hour comparison would cause: US DST ends
+    // 2026-11-01, so this span is 42 days plus one hour, and a floor-to-days
+    // check that measured 42.04 would reject a grid it accepts in July.
+    expect(() =>
+      rangeWindow("2026-10-25", "2026-12-05", "America/New_York"),
+    ).not.toThrow();
+
+    expect(() =>
+      rangeWindow("2026-03-01", "2026-04-11", "America/New_York"),
+    ).not.toThrow();
+  });
+
+  it("refuses a span wider than the grid, so one call cannot drain a journal", () => {
+    expect(() => rangeWindow("2026-01-01", "2026-12-31", "UTC")).toThrow(
+      /over the 42-day limit/,
+    );
+    expect(() => rangeWindow("2026-06-28", "2026-08-09", "UTC")).toThrow(
+      /43 days/,
+    );
+  });
+
+  it("refuses a backwards range", () => {
+    expect(() => rangeWindow("2026-07-30", "2026-07-29", "UTC")).toThrow(
+      /ends before it starts/,
+    );
+  });
+
+  it("rejects malformed bounds", () => {
+    expect(() => rangeWindow("2026-7-01", "2026-07-30", "UTC")).toThrow(
+      /yyyy-MM-dd/,
+    );
+    expect(() => rangeWindow("2026-07-01", "", "UTC")).toThrow(/yyyy-MM-dd/);
+  });
+});
+
+describe("zonedDayAndMinutes", () => {
+  it("agrees with dayKeyInTimeZone about the day", () => {
+    const note = new Date("2026-07-29T20:30:00Z");
+
+    for (const zone of ["UTC", "Asia/Kolkata", "America/New_York"]) {
+      expect(zonedDayAndMinutes(note, zone).day).toBe(
+        dayKeyInTimeZone(note, zone),
+      );
+    }
+  });
+
+  it("reports minutes past local midnight, in the given zone", () => {
+    const note = new Date("2026-07-29T20:30:00Z");
+
+    // 02:00 IST — the case the whole timezone layer exists for.
+    expect(zonedDayAndMinutes(note, "Asia/Kolkata")).toEqual({
+      day: "2026-07-30",
+      minutes: 2 * 60,
+    });
+    expect(zonedDayAndMinutes(note, "UTC")).toEqual({
+      day: "2026-07-29",
+      minutes: 20 * 60 + 30,
+    });
+  });
+
+  it("places local midnight at 0, not 1440", () => {
+    // The `hour12: false` trap: some ICU builds render midnight as hour "24",
+    // which would push a 00:15 note off the bottom of the previous day.
+    const midnight = new Date("2026-07-30T00:00:00Z");
+
+    expect(zonedDayAndMinutes(midnight, "UTC")).toEqual({
+      day: "2026-07-30",
+      minutes: 0,
+    });
+    expect(zonedDayAndMinutes(new Date("2026-07-30T00:15:00Z"), "UTC").minutes).toBe(
+      15,
+    );
+  });
+
+  it("handles a 45-minute offset", () => {
+    expect(
+      zonedDayAndMinutes(new Date("2026-07-30T00:00:00Z"), "Asia/Kathmandu"),
+    ).toEqual({ day: "2026-07-30", minutes: 5 * 60 + 45 });
+  });
+
+  it("falls back to UTC for a junk zone rather than throwing", () => {
+    expect(
+      zonedDayAndMinutes(new Date("2026-07-30T09:05:00Z"), "Mars/Olympus_Mons"),
+    ).toEqual({ day: "2026-07-30", minutes: 9 * 60 + 5 });
+  });
+
+  it("lands inside the day window it names", () => {
+    const note = new Date("2026-11-01T05:30:00Z");
+    const { day, minutes } = zonedDayAndMinutes(note, "America/New_York");
+    const { start, end } = dayWindow(day, "America/New_York");
+
+    expect(note >= start && note < end).toBe(true);
+    // Placed within the day's own length, which on this fall-back day is 25h.
+    expect(minutes).toBeLessThan(24 * 60);
   });
 });
 

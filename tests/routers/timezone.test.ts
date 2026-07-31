@@ -10,15 +10,27 @@ import { callerFor, makeJournal, makeNote, USER_A } from "../helpers/db";
  * written before 05:30 local, so a note could appear in the list for a day whose
  * badge read 0 — or count toward a badge and then be missing from the list.
  *
- * Both now come from the server with an explicit zone, so the invariant worth
- * testing is that they agree.
+ * There is now one query behind the whole grid, and it labels each note with the
+ * `day` cell it belongs in. So the invariant worth testing has become sharper:
+ * the day a note reports must be the day whose window actually contains it, in
+ * every zone — and the range must contain exactly the notes it should.
  */
 
 // 02:00 IST on 2026-07-30 is 20:30 UTC on 2026-07-29 — the exact case that broke.
 const EARLY_MORNING_IST = new Date("2026-07-29T20:30:00Z");
 
-describe("note list and calendar badges agree", () => {
-  it("files an early-morning IST note under the IST day in both views", async () => {
+/** The month grid for July 2026: Sun Jun 28 through Sat Aug 8, six weeks. */
+const JULY_GRID = { start: "2026-06-28", end: "2026-08-08" };
+
+/** Per-day counts, as the calendar derives them — from the notes themselves. */
+const countByDay = (notes: { day: string }[]) =>
+  notes.reduce<Record<string, number>>((acc, note) => {
+    acc[note.day] = (acc[note.day] ?? 0) + 1;
+    return acc;
+  }, {});
+
+describe("the calendar grid files notes under the reader's day", () => {
+  it("files an early-morning IST note under the IST day, not the UTC one", async () => {
     const a = callerFor(USER_A);
     const journal = await makeJournal(USER_A);
     await makeNote(journal.id, {
@@ -26,56 +38,38 @@ describe("note list and calendar badges agree", () => {
       createdAt: EARLY_MORNING_IST,
     });
 
-    const list = await a.notesRouter.getAllNotesByIdAndDate({
+    const notes = await a.notesRouter.getNotesInRange({
       journalId: journal.id,
-      date: "2026-07-30",
+      ...JULY_GRID,
       timeZone: "Asia/Kolkata",
     });
 
-    const counts = await a.notesRouter.getNoteCountsByMonth({
-      journalId: journal.id,
-      month: "2026-07",
-      timeZone: "Asia/Kolkata",
-    });
-
-    expect(list).toHaveLength(1);
-    expect(list[0]?.title).toBe("2am thoughts");
-    expect(counts["2026-07-30"]).toBe(1);
-
-    // And it is *not* filed under the 29th in either view.
-    const listPrev = await a.notesRouter.getAllNotesByIdAndDate({
-      journalId: journal.id,
-      date: "2026-07-29",
-      timeZone: "Asia/Kolkata",
-    });
-    expect(listPrev).toHaveLength(0);
-    expect(counts["2026-07-29"]).toBeUndefined();
+    expect(notes).toHaveLength(1);
+    expect(notes[0]?.title).toBe("2am thoughts");
+    expect(notes[0]?.day).toBe("2026-07-30");
+    // 02:00 local, so two hours into the day — where the time grid draws it.
+    expect(notes[0]?.minutes).toBe(120);
   });
 
   it("files the same note under Jul 29 when read in UTC", async () => {
     // Not a bug — a different reader in a different zone genuinely did see that
-    // instant on the 29th. The point is that list and badges still agree.
+    // instant on the 29th. The point is that one answer covers the whole grid.
     const a = callerFor(USER_A);
     const journal = await makeJournal(USER_A);
     await makeNote(journal.id, { createdAt: EARLY_MORNING_IST });
 
-    const list = await a.notesRouter.getAllNotesByIdAndDate({
+    const notes = await a.notesRouter.getNotesInRange({
       journalId: journal.id,
-      date: "2026-07-29",
-      timeZone: "UTC",
-    });
-    const counts = await a.notesRouter.getNoteCountsByMonth({
-      journalId: journal.id,
-      month: "2026-07",
+      ...JULY_GRID,
       timeZone: "UTC",
     });
 
-    expect(list).toHaveLength(1);
-    expect(counts["2026-07-29"]).toBe(1);
-    expect(counts["2026-07-30"]).toBeUndefined();
+    expect(notes).toHaveLength(1);
+    expect(notes[0]?.day).toBe("2026-07-29");
+    expect(notes[0]?.minutes).toBe(20 * 60 + 30);
   });
 
-  it("agrees across every zone, for every day of a month", async () => {
+  it("agrees with a single-day query, in every zone, for every day it reports", async () => {
     const a = callerFor(USER_A);
     const journal = await makeJournal(USER_A);
 
@@ -100,45 +94,104 @@ describe("note list and calendar badges agree", () => {
       "Asia/Kathmandu",
       "Pacific/Kiritimati",
     ]) {
-      const counts = await a.notesRouter.getNoteCountsByMonth({
+      const grid = await a.notesRouter.getNotesInRange({
         journalId: journal.id,
-        month: "2026-07",
+        ...JULY_GRID,
         timeZone,
       });
 
-      // For every badge the calendar would draw, the list for that same day must
-      // return exactly that many notes.
-      for (const [day, count] of Object.entries(counts)) {
-        const list = await a.notesRouter.getAllNotesByIdAndDate({
+      // Every cell the month grid would draw must hold exactly what the day view
+      // shows for that same date. These are the same procedure at two different
+      // widths, which is the property that makes switching view safe.
+      for (const [day, count] of Object.entries(countByDay(grid))) {
+        const dayView = await a.notesRouter.getNotesInRange({
           journalId: journal.id,
-          date: day,
+          start: day,
+          end: day,
           timeZone,
         });
 
         expect(
-          list.length,
-          `${timeZone} ${day}: badge said ${count}, list returned ${list.length}`,
+          dayView.length,
+          `${timeZone} ${day}: grid held ${count}, day view returned ${dayView.length}`,
         ).toBe(count);
+        expect(dayView.every((note) => note.day === day)).toBe(true);
       }
     }
   });
 
-  it("bounds badge counts to the requested month", async () => {
+  it("bounds results to the requested range", async () => {
     const a = callerFor(USER_A);
     const journal = await makeJournal(USER_A);
 
     await makeNote(journal.id, { createdAt: new Date("2026-06-15T12:00:00Z") });
     await makeNote(journal.id, { createdAt: new Date("2026-07-15T12:00:00Z") });
-    await makeNote(journal.id, { createdAt: new Date("2026-08-15T12:00:00Z") });
+    await makeNote(journal.id, { createdAt: new Date("2026-09-15T12:00:00Z") });
 
-    const counts = await a.notesRouter.getNoteCountsByMonth({
+    const notes = await a.notesRouter.getNotesInRange({
       journalId: journal.id,
-      month: "2026-07",
+      ...JULY_GRID,
       timeZone: "UTC",
     });
 
-    // Only July, so the query cost does not grow with journal size.
-    expect(Object.keys(counts)).toEqual(["2026-07-15"]);
+    // Only what is on screen, so the query cost does not grow with journal size.
+    expect(notes.map((note) => note.day)).toEqual(["2026-07-15"]);
+  });
+
+  it("includes both named days, inclusively", async () => {
+    const a = callerFor(USER_A);
+    const journal = await makeJournal(USER_A);
+
+    await makeNote(journal.id, { createdAt: new Date("2026-07-05T00:00:00Z") });
+    await makeNote(journal.id, { createdAt: new Date("2026-07-11T23:59:00Z") });
+    await makeNote(journal.id, { createdAt: new Date("2026-07-12T00:00:00Z") });
+
+    const notes = await a.notesRouter.getNotesInRange({
+      journalId: journal.id,
+      start: "2026-07-05",
+      end: "2026-07-11",
+      timeZone: "UTC",
+    });
+
+    expect(notes.map((note) => note.day)).toEqual([
+      "2026-07-05",
+      "2026-07-11",
+    ]);
+  });
+
+  it("returns notes in chronological order, which the time grid depends on", async () => {
+    const a = callerFor(USER_A);
+    const journal = await makeJournal(USER_A);
+
+    await makeNote(journal.id, { createdAt: new Date("2026-07-15T18:00:00Z") });
+    await makeNote(journal.id, { createdAt: new Date("2026-07-15T06:00:00Z") });
+    await makeNote(journal.id, { createdAt: new Date("2026-07-14T09:00:00Z") });
+
+    const notes = await a.notesRouter.getNotesInRange({
+      journalId: journal.id,
+      ...JULY_GRID,
+      timeZone: "UTC",
+    });
+
+    expect(notes.map((note) => [note.day, note.minutes])).toEqual([
+      ["2026-07-14", 9 * 60],
+      ["2026-07-15", 6 * 60],
+      ["2026-07-15", 18 * 60],
+    ]);
+  });
+
+  it("refuses a span wider than the grid rather than draining the journal", async () => {
+    const a = callerFor(USER_A);
+    const journal = await makeJournal(USER_A);
+
+    await expect(
+      a.notesRouter.getNotesInRange({
+        journalId: journal.id,
+        start: "2026-01-01",
+        end: "2026-12-31",
+        timeZone: "UTC",
+      }),
+    ).rejects.toThrow();
   });
 
   it("falls back to UTC for a junk timezone instead of failing", async () => {
@@ -146,14 +199,14 @@ describe("note list and calendar badges agree", () => {
     const journal = await makeJournal(USER_A);
     await makeNote(journal.id, { createdAt: EARLY_MORNING_IST });
 
-    const counts = await a.notesRouter.getNoteCountsByMonth({
+    const notes = await a.notesRouter.getNotesInRange({
       journalId: journal.id,
-      month: "2026-07",
+      ...JULY_GRID,
       timeZone: "'; DROP TABLE \"Note\"; --",
     });
 
     // Behaved as UTC, and the table is obviously still there.
-    expect(counts["2026-07-29"]).toBe(1);
+    expect(notes[0]?.day).toBe("2026-07-29");
   });
 
   it("defaults to UTC when no timezone is supplied", async () => {
@@ -161,11 +214,12 @@ describe("note list and calendar badges agree", () => {
     const journal = await makeJournal(USER_A);
     await makeNote(journal.id, { createdAt: EARLY_MORNING_IST });
 
-    const list = await a.notesRouter.getAllNotesByIdAndDate({
+    const notes = await a.notesRouter.getNotesInRange({
       journalId: journal.id,
-      date: "2026-07-29",
+      ...JULY_GRID,
     });
 
-    expect(list).toHaveLength(1);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]?.day).toBe("2026-07-29");
   });
 });

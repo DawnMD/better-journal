@@ -96,23 +96,16 @@ describe("locked journals are unreachable without a token", () => {
     // FORBIDDEN, not NOT_FOUND: the owner needs to know it exists so the client
     // can prompt for the password.
     await expect(
-      a.notesRouter.getAllNotesByIdAndDate({
+      a.notesRouter.getNotesInRange({
         journalId: journal.id,
-        date: "2026-07-30",
+        start: "2026-06-28",
+        end: "2026-08-08",
         timeZone: "UTC",
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
 
     await expect(
       a.notesRouter.createNote({ journalId: journal.id }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-
-    await expect(
-      a.notesRouter.getNoteCountsByMonth({
-        journalId: journal.id,
-        month: "2026-07",
-        timeZone: "UTC",
-      }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
