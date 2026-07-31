@@ -77,6 +77,18 @@ So the zone is an explicit input from the client, and every day boundary goes th
 
 Both casts are load-bearing. A single `AT TIME ZONE` reads the naive stored value as though it were *already* local and shifts it the wrong way.
 
+The calendar goes one step further and never asks the browser *where* a note goes at all. `getNotesInRange` labels every note with the `day` cell and the `minutes` offset it belongs at, computed once in the zone the query was made in. The client groups by that label rather than reading `createdAt` through a local `Date` getter — which would answer for the browser's zone, and the two are only usually the same.
+
+### The calendar
+
+Month, week and day, built on the range query above rather than a component library. One read backs all three — a month grid is 42 days, a week is 7, a day is 1 — so switching view or paging is a single round trip.
+
+Per-day counts are not a separate aggregate any more. The grid has the notes, so it counts them, and a badge that contradicts the cell under it stops being expressible. That disagreement was a real bug: the list bucketed days in the server's zone while the badges were counted client-side in the browser's, and in IST they diverged for anything written before 05:30.
+
+What you are looking at — the selected day and the view — lives in the URL and is derived on every render, so browser back/forward moves the calendar and a day view is linkable. The server prefetches the same range through the same `lib/calendar.ts` helpers the client uses; two implementations of "which days are on screen" would differ by an off-by-one and turn every first paint into a cache miss.
+
+`rangeWindow` caps a request at six weeks. Without it one call could ask for every note a journal has ever held, which is the unbounded read the whole timezone-aware aggregation existed to remove.
+
 ### Missing is a 404, not an error
 
 An id that doesn't resolve is an ordinary navigation outcome — a stale bookmark, a journal emptied from trash, someone else's id — so it renders a not-found boundary with a real 404 status rather than "something went wrong".
@@ -131,7 +143,7 @@ Find your Clerk user id in the Clerk dashboard. The generator is seeded, so reru
 
 ## Tests
 
-148 tests, run against a **real Postgres** rather than a mocked Prisma client. That is the whole point: the bugs worth catching here live in relation filters, `updateMany` predicates, and timezone-shifted `GROUP BY` — none of which a mock evaluates. A mocked test proves you called Prisma, not that the query is correct.
+194 tests, run against a **real Postgres** rather than a mocked Prisma client. That is the whole point: the bugs worth catching here live in relation filters, `updateMany` predicates, and timezone-shifted `GROUP BY` — none of which a mock evaluates. A mocked test proves you called Prisma, not that the query is correct.
 
 `tests/global-setup.ts` creates and migrates a throwaway database; each test truncates. Procedures are called directly through `createRouterClient(router, { context: { db, userId } })`, so the real middleware chain runs with no HTTP layer to stand up.
 
@@ -139,7 +151,8 @@ What's covered:
 
 - **Cross-tenant access** — every id-taking procedure, asserting user B gets `NOT_FOUND` for user A's resource.
 - **Locked journals** — every note-by-id path refuses; token forgery, cross-journal reuse, cross-user reuse, and expiry extension all fail.
-- **Timezones** — DST-boundary day windows (23h and 25h), half-hour and 45-minute offsets, and list-vs-badge agreement across five zones.
+- **Timezones** — DST-boundary day windows (23h and 25h), half-hour and 45-minute offsets, and month-grid-vs-day-view agreement across five zones.
+- **Calendar geometry** — grid extents, the six-week range cap against `rangeWindow`'s, overlap packing, and query-string params that would otherwise 500 out of `format`.
 - **Search** — stemming, title-over-body ranking, prefix matching, and tsquery operator input that would otherwise 500.
 - **The AI gate** — every AI procedure refuses with no key present, which is how CI runs.
 
