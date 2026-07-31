@@ -9,13 +9,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { formatDate, formatNumber } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
 import { clientTimeZone } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { TableIcon } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 /**
  * Words written over time.
@@ -23,10 +30,12 @@ import { useId, useMemo, useState } from "react";
  * A single series, so there is deliberately no legend — the card title already
  * says what is plotted, and a one-swatch legend box would just restate it.
  *
- * Hand-rolled SVG rather than a charting library: the whole chart is one path, an
- * area wash and a hover layer, and adding Recharts for that would be more
- * dependency than drawing. It also keeps the marks exactly to spec — 2px line,
- * hairline solid grid, 8px marker, 2px surface ring.
+ * Built on the shadcn chart wrapper: `ChartContainer` owns the responsive box
+ * and turns `ChartConfig` colors into `--color-*` variables, so the marks below
+ * reference `var(--color-words)` and inherit the validated ramp in both themes
+ * without a second set of tokens. Marks are still held to spec by hand — 2px
+ * line, solid hairline grid, ~10% area wash, 8px active marker with a 2px
+ * surface ring — since Recharts' defaults are heavier than that.
  */
 
 type Range = "30d" | "90d" | "12m";
@@ -37,12 +46,12 @@ const RANGE_LABELS: Record<Range, string> = {
   "12m": "12 months",
 };
 
-const WIDTH = 720;
-const HEIGHT = 220;
-const PAD = { top: 16, right: 16, bottom: 28, left: 48 };
-
-const PLOT_W = WIDTH - PAD.left - PAD.right;
-const PLOT_H = HEIGHT - PAD.top - PAD.bottom;
+const chartConfig = {
+  words: {
+    label: "Words",
+    color: "var(--viz-series-1)",
+  },
+} satisfies ChartConfig;
 
 /** Round an axis maximum up to a clean number, so ticks read 0 / 500 / 1,000. */
 function niceMax(value: number): number {
@@ -70,8 +79,6 @@ export const WordsChart = () => {
   const timeZone = clientTimeZone();
   const [range, setRange] = useState<Range>("90d");
   const [showTable, setShowTable] = useState(false);
-  const [hover, setHover] = useState<number | null>(null);
-  const clipId = useId();
 
   const { data } = useSuspenseQuery(
     orpc.statsRouter.getWordCounts.queryOptions({ input: { range, timeZone } }),
@@ -80,32 +87,12 @@ export const WordsChart = () => {
   const isMonthly = data.bucket === "month";
   const points = data.points;
 
-  const { max, linePath, areaPath, coords } = useMemo(() => {
-    const values = points.map((p) => p.words);
-    const max = niceMax(Math.max(...values, 0));
-
-    const coords = points.map((point, index) => ({
-      x:
-        PAD.left +
-        (points.length <= 1 ? PLOT_W / 2 : (index / (points.length - 1)) * PLOT_W),
-      y: PAD.top + PLOT_H - (point.words / max) * PLOT_H,
-      ...point,
-    }));
-
-    const linePath = coords
-      .map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)},${c.y.toFixed(2)}`)
-      .join(" ");
-
-    const areaPath =
-      coords.length > 0
-        ? `${linePath} L${coords[coords.length - 1]!.x.toFixed(2)},${PAD.top + PLOT_H} L${coords[0]!.x.toFixed(2)},${PAD.top + PLOT_H} Z`
-        : "";
-
-    return { max, linePath, areaPath, coords };
-  }, [points]);
+  const max = useMemo(
+    () => niceMax(Math.max(...points.map((p) => p.words), 0)),
+    [points],
+  );
 
   const totalWords = points.reduce((sum, p) => sum + p.words, 0);
-  const active = hover !== null ? coords[hover] : undefined;
 
   return (
     <Card>
@@ -124,10 +111,7 @@ export const WordsChart = () => {
               size="sm"
               aria-pressed={range === option}
               className={cn(range === option && "bg-muted")}
-              onClick={() => {
-                setRange(option);
-                setHover(null);
-              }}
+              onClick={() => setRange(option)}
             >
               {RANGE_LABELS[option]}
             </Button>
@@ -148,168 +132,97 @@ export const WordsChart = () => {
         {showTable ? (
           <WordsTable points={points} isMonthly={isMonthly} />
         ) : (
-          <div className="relative">
-            <svg
-              viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-              className="w-full"
-              style={{ height: HEIGHT }}
-              role="img"
-              aria-label={`Words written per ${isMonthly ? "month" : "day"} over the last ${RANGE_LABELS[range]}. Total ${formatNumber(totalWords)} words.`}
-              onMouseLeave={() => setHover(null)}
-              onMouseMove={(event) => {
-                // Nearest-point rather than per-mark hit testing: daily buckets
-                // are ~7px apart, far below a usable target, so the whole plot is
-                // the hit area and the closest x wins.
-                const rect = event.currentTarget.getBoundingClientRect();
-                const ratio = (event.clientX - rect.left) / rect.width;
-                const x = ratio * WIDTH;
-                const index = Math.round(
-                  ((x - PAD.left) / PLOT_W) * (points.length - 1),
-                );
-                setHover(Math.max(0, Math.min(points.length - 1, index)));
-              }}
+          // aspect-auto overrides the container's default aspect-video: this card
+          // is far wider than it is tall, and a 16:9 box would make it enormous.
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-[220px] w-full"
+            role="img"
+            aria-label={`Words written per ${isMonthly ? "month" : "day"} over the last ${RANGE_LABELS[range]}. Total ${formatNumber(totalWords)} words.`}
+          >
+            <AreaChart
+              accessibilityLayer
+              data={points}
+              margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
             >
-              <defs>
-                <clipPath id={clipId}>
-                  <rect
-                    x={PAD.left}
-                    y={PAD.top}
-                    width={PLOT_W}
-                    height={PLOT_H}
-                  />
-                </clipPath>
-              </defs>
-
-              {/* Gridlines: solid hairlines one step off the surface, never
-                  dashed — dashing reads as "threshold" when it is just a grid. */}
-              {[0, 0.25, 0.5, 0.75, 1].map((fraction) => {
-                const y = PAD.top + PLOT_H * fraction;
-                const value = Math.round(max * (1 - fraction));
-
-                return (
-                  <g key={fraction}>
-                    <line
-                      x1={PAD.left}
-                      x2={WIDTH - PAD.right}
-                      y1={y}
-                      y2={y}
-                      stroke="var(--viz-grid)"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={PAD.left - 8}
-                      y={y + 3}
-                      textAnchor="end"
-                      fontSize={10}
-                      fill="var(--viz-muted)"
-                      style={{ fontVariantNumeric: "tabular-nums" }}
-                    >
-                      {formatNumber(value)}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Area wash at ~10% — a hint of volume, never a saturated block. */}
-              <path
-                d={areaPath}
-                fill="var(--viz-series-1)"
-                fillOpacity={0.1}
-                clipPath={`url(#${clipId})`}
+              {/* Horizontal only, and solid — dashed gridlines read as
+                  "threshold" when this is just a grid. */}
+              <CartesianGrid
+                vertical={false}
+                stroke="var(--viz-grid)"
+                strokeDasharray=""
               />
 
-              <path
-                d={linePath}
-                fill="none"
-                stroke="var(--viz-series-1)"
+              <XAxis
+                dataKey="bucket"
+                tickLine={false}
+                axisLine={{ stroke: "var(--viz-axis)" }}
+                tickMargin={8}
+                // A label per daily bucket would overlap into an unreadable
+                // smear, so Recharts drops ticks until they clear each other.
+                minTickGap={48}
+                tickFormatter={(value: string) => formatBucket(value, isMonthly)}
+              />
+
+              <YAxis
+                width={48}
+                domain={[0, max]}
+                tickCount={5}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tickFormatter={(value: number) => formatNumber(value)}
+              />
+
+              <ChartTooltip
+                cursor={{ stroke: "var(--viz-axis)", strokeWidth: 1 }}
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(_, payload) => {
+                      const bucket = payload?.[0]?.payload?.bucket as
+                        | string
+                        | undefined;
+                      return bucket ? formatBucket(bucket, isMonthly) : "";
+                    }}
+                    formatter={(value, _name, item) => {
+                      const words = Number(value);
+                      const notes = Number(item?.payload?.notes ?? 0);
+
+                      return (
+                        <span className="text-muted-foreground">
+                          {formatNumber(words)} {words === 1 ? "word" : "words"}
+                          {notes > 0 &&
+                            ` · ${notes} ${notes === 1 ? "entry" : "entries"}`}
+                        </span>
+                      );
+                    }}
+                  />
+                }
+              />
+
+              <Area
+                dataKey="words"
+                type="linear"
+                stroke="var(--color-words)"
                 strokeWidth={2}
                 strokeLinejoin="round"
                 strokeLinecap="round"
-              />
-
-              {/* Baseline */}
-              <line
-                x1={PAD.left}
-                x2={WIDTH - PAD.right}
-                y1={PAD.top + PLOT_H}
-                y2={PAD.top + PLOT_H}
-                stroke="var(--viz-axis)"
-                strokeWidth={1}
-              />
-
-              {/* X labels: first, middle, last only. A label per daily bucket
-                  would overlap into an unreadable smear. */}
-              {[0, Math.floor(points.length / 2), points.length - 1]
-                .filter((i, idx, arr) => i >= 0 && arr.indexOf(i) === idx)
-                .map((index) => {
-                  const point = coords[index];
-                  if (!point) return null;
-
-                  return (
-                    <text
-                      key={index}
-                      x={point.x}
-                      y={HEIGHT - 8}
-                      textAnchor={
-                        index === 0
-                          ? "start"
-                          : index === points.length - 1
-                            ? "end"
-                            : "middle"
-                      }
-                      fontSize={10}
-                      fill="var(--viz-muted)"
-                    >
-                      {formatBucket(point.bucket, isMonthly)}
-                    </text>
-                  );
-                })}
-
-              {/* Crosshair + marker */}
-              {active && (
-                <g>
-                  <line
-                    x1={active.x}
-                    x2={active.x}
-                    y1={PAD.top}
-                    y2={PAD.top + PLOT_H}
-                    stroke="var(--viz-axis)"
-                    strokeWidth={1}
-                  />
-                  {/* 2px surface ring keeps the marker legible where it sits on
-                      the line. */}
-                  <circle
-                    cx={active.x}
-                    cy={active.y}
-                    r={5}
-                    fill="var(--viz-series-1)"
-                    stroke="var(--viz-surface)"
-                    strokeWidth={2}
-                  />
-                </g>
-              )}
-            </svg>
-
-            {active && (
-              <div
-                className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md border bg-popover px-2 py-1 text-xs shadow-sm"
-                style={{
-                  left: `${(active.x / WIDTH) * 100}%`,
-                  top: `${(active.y / HEIGHT) * 100}%`,
+                // A wash at ~10% — a hint of volume, never a saturated block.
+                fill="var(--color-words)"
+                fillOpacity={0.1}
+                // No dot per bucket; daily buckets sit ~7px apart and would fuse
+                // into a bead chain. The 8px active dot appears on hover, ringed
+                // in the surface color so it stays legible over the line.
+                dot={false}
+                activeDot={{
+                  r: 4,
+                  fill: "var(--color-words)",
+                  stroke: "var(--viz-surface)",
+                  strokeWidth: 2,
                 }}
-              >
-                <div className="font-medium">
-                  {formatBucket(active.bucket, isMonthly)}
-                </div>
-                <div className="text-muted-foreground">
-                  {formatNumber(active.words)}{" "}
-                  {active.words === 1 ? "word" : "words"}
-                  {active.notes > 0 &&
-                    ` · ${active.notes} ${active.notes === 1 ? "entry" : "entries"}`}
-                </div>
-              </div>
-            )}
-          </div>
+              />
+            </AreaChart>
+          </ChartContainer>
         )}
       </CardContent>
     </Card>

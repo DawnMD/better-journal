@@ -168,25 +168,34 @@ export const ActivityHeatmap = () => {
           <ActivityTable days={activeDays} />
         ) : (
           <div className="overflow-x-auto">
-            <div className="flex gap-2 pb-1">
+            {/* Week columns share the width evenly and the cells are square, so
+                the grid fills the card instead of sitting at a fixed size. Below
+                the min-width the cells would shrink past a usable target, so it
+                scrolls from there rather than shrinking further. */}
+            <div className="flex min-w-[640px] gap-2 pb-1">
               {/* Weekday gutter. Only alternate rows are labelled — seven labels
-                  in a 10px grid is unreadable. */}
+                  in a grid this fine is unreadable. The rows stretch to the
+                  cell grid's height, which keeps the labels on their rows at
+                  any cell size. */}
               <div
-                className="grid shrink-0 gap-[3px] pt-5 text-[10px] text-muted-foreground"
+                className="grid shrink-0 grid-rows-7 gap-[3px] pt-5 text-[10px] text-muted-foreground"
                 aria-hidden
               >
                 {WEEKDAY_LABELS.map((label, index) => (
-                  <div key={index} className="h-[11px] leading-[11px]">
+                  <div key={index} className="flex items-center leading-none">
                     {label}
                   </div>
                 ))}
               </div>
 
-              <div>
+              <div className="min-w-0 flex-1">
                 <MonthAxis weeks={weeks} />
                 <div className="flex gap-[3px]">
                   {weeks.map((week, weekIndex) => (
-                    <div key={weekIndex} className="grid gap-[3px]">
+                    <div
+                      key={weekIndex}
+                      className="flex min-w-0 flex-1 flex-col gap-[3px]"
+                    >
                       {week.map((day, dayIndex) =>
                         day ? (
                           <DayCell key={day.key} day={day} />
@@ -194,7 +203,7 @@ export const ActivityHeatmap = () => {
                           // Padding before Jan 1 / after Dec 31.
                           <div
                             key={`${weekIndex}-${dayIndex}`}
-                            className="size-[11px]"
+                            className="aspect-square w-full"
                           />
                         ),
                       )}
@@ -215,9 +224,10 @@ export const ActivityHeatmap = () => {
 /**
  * One day.
  *
- * The cell is 11px but the hover/focus target is the whole button including its
- * gap, and it is keyboard-focusable — a tooltip must never be the only way to
- * reach a value, and pinpoint 11px targets fail that in practice.
+ * The cell sizes itself off the column width, and the hover/focus target is the
+ * whole button including its gap. It is keyboard-focusable — a tooltip must
+ * never be the only way to reach a value, and pinpoint targets fail that in
+ * practice.
  */
 function DayCell({ day }: { day: Day }) {
   const level = activityLevel(day.count);
@@ -239,7 +249,7 @@ function DayCell({ day }: { day: Day }) {
           <button
             type="button"
             aria-label={label}
-            className="size-[11px] rounded-[2px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="aspect-square w-full rounded-[2px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
             style={{ backgroundColor: LEVEL_VAR[level] }}
           />
         }
@@ -273,8 +283,9 @@ function MonthAxis({ weeks }: { weeks: (Day | null)[][] }) {
         <span
           key={label.month}
           className="absolute top-0"
-          // 11px cell + 3px gap per week column.
-          style={{ left: `${label.index * 14}px` }}
+          // Percentage, not pixels: the week columns are now width-derived, so
+          // a fixed per-column offset would drift off its month.
+          style={{ left: `${(label.index / weeks.length) * 100}%` }}
         >
           {MONTH_LABELS[label.month]}
         </span>
