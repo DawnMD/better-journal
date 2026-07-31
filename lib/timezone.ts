@@ -74,3 +74,57 @@ export function dayKeyInTimeZone(instant: Date, timeZone: string): string {
 export function monthKeyInTimeZone(instant: Date, timeZone: string): string {
   return dayKeyInTimeZone(instant, timeZone).slice(0, 7);
 }
+
+/**
+ * Formatters are cached per zone. Constructing an `Intl.DateTimeFormat` is the
+ * expensive part of this — it loads a zone's transition table — and the calendar
+ * calls `zonedDayAndMinutes` once per note in the visible range.
+ */
+const partFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function partFormatter(zone: string): Intl.DateTimeFormat {
+  let formatter = partFormatters.get(zone);
+
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      // h23, not `hour12: false` — the latter renders midnight as "24" under
+      // some ICU builds, which would place a 00:15 note at the bottom of the
+      // previous day's column.
+      hourCycle: "h23",
+    });
+    partFormatters.set(zone, formatter);
+  }
+
+  return formatter;
+}
+
+/**
+ * Where a UTC instant falls on `timeZone`'s calendar: which day, and how many
+ * minutes into it.
+ *
+ * The calendar's time grid needs both, and it must not derive either in the
+ * browser. The client renders whatever zone the *query* was made in, which is
+ * usually — but not necessarily — the browser's own, and a `Date` getter would
+ * silently answer for the browser's. Computing both here, once, from the same
+ * zone the notes were fetched under keeps the grid and the query in agreement.
+ */
+export function zonedDayAndMinutes(
+  instant: Date,
+  timeZone: string,
+): { day: string; minutes: number } {
+  const parts = partFormatter(resolveTimeZone(timeZone)).formatToParts(instant);
+
+  const lookup = {} as Record<Intl.DateTimeFormatPartTypes, string>;
+  for (const part of parts) lookup[part.type] = part.value;
+
+  return {
+    day: `${lookup.year}-${lookup.month}-${lookup.day}`,
+    minutes: Number(lookup.hour) * 60 + Number(lookup.minute),
+  };
+}
