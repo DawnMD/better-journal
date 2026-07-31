@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatDate, formatNumber } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
 import { clientTimeZone } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
@@ -58,9 +59,11 @@ function formatBucket(bucket: string, isMonthly: boolean): string {
   const [y, m, d] = bucket.split("-").map(Number);
   const date = new Date(y, (m ?? 1) - 1, d ?? 1);
 
+  // Pinned locale, not the ambient one — this string is rendered during SSR and
+  // again on hydration, and the two runtimes do not agree on "31 Jul" vs "Jul 31".
   return isMonthly
-    ? date.toLocaleDateString(undefined, { month: "short", year: "numeric" })
-    : date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    ? formatDate(date, { month: "short", year: "numeric" })
+    : formatDate(date, { month: "short", day: "numeric" });
 }
 
 export const WordsChart = () => {
@@ -109,7 +112,7 @@ export const WordsChart = () => {
       <CardHeader>
         <CardTitle>Words written</CardTitle>
         <CardDescription>
-          {totalWords.toLocaleString()} words over the last{" "}
+          {formatNumber(totalWords)} words over the last{" "}
           {RANGE_LABELS[range].toLowerCase()}
         </CardDescription>
         {/* One filter row, above the plot it scopes — never inside the plot. */}
@@ -151,7 +154,7 @@ export const WordsChart = () => {
               className="w-full"
               style={{ height: HEIGHT }}
               role="img"
-              aria-label={`Words written per ${isMonthly ? "month" : "day"} over the last ${RANGE_LABELS[range]}. Total ${totalWords.toLocaleString()} words.`}
+              aria-label={`Words written per ${isMonthly ? "month" : "day"} over the last ${RANGE_LABELS[range]}. Total ${formatNumber(totalWords)} words.`}
               onMouseLeave={() => setHover(null)}
               onMouseMove={(event) => {
                 // Nearest-point rather than per-mark hit testing: daily buckets
@@ -201,7 +204,7 @@ export const WordsChart = () => {
                       fill="var(--viz-muted)"
                       style={{ fontVariantNumeric: "tabular-nums" }}
                     >
-                      {value.toLocaleString()}
+                      {formatNumber(value)}
                     </text>
                   </g>
                 );
@@ -299,7 +302,7 @@ export const WordsChart = () => {
                   {formatBucket(active.bucket, isMonthly)}
                 </div>
                 <div className="text-muted-foreground">
-                  {active.words.toLocaleString()}{" "}
+                  {formatNumber(active.words)}{" "}
                   {active.words === 1 ? "word" : "words"}
                   {active.notes > 0 &&
                     ` · ${active.notes} ${active.notes === 1 ? "entry" : "entries"}`}
@@ -347,7 +350,7 @@ function WordsTable({
               <td className="py-1.5">{formatBucket(row.bucket, isMonthly)}</td>
               <td className="py-1.5 text-right tabular-nums">{row.notes}</td>
               <td className="py-1.5 text-right tabular-nums">
-                {row.words.toLocaleString()}
+                {formatNumber(row.words)}
               </td>
             </tr>
           ))}

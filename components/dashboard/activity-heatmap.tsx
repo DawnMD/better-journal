@@ -18,6 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatDate, formatNumber } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
 import { clientTimeZone } from "@/lib/timezone";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -130,7 +131,7 @@ export const ActivityHeatmap = () => {
         <CardDescription>
           {total === 0
             ? `No entries in ${year}`
-            : `${total.toLocaleString()} ${total === 1 ? "entry" : "entries"} across ${activeDays.length} ${activeDays.length === 1 ? "day" : "days"} in ${year}`}
+            : `${formatNumber(total)} ${total === 1 ? "entry" : "entries"} across ${activeDays.length} ${activeDays.length === 1 ? "day" : "days"} in ${year}`}
         </CardDescription>
         <CardAction className="flex items-center gap-1">
           <Button
@@ -221,12 +222,15 @@ export const ActivityHeatmap = () => {
 function DayCell({ day }: { day: Day }) {
   const level = activityLevel(day.count);
 
-  const label = `${day.date.toLocaleDateString(undefined, {
+  // Pinned locale, not the ambient one. This lands in an `aria-label`, and React
+  // checks attributes on hydration just as strictly as text — a server on `en-IN`
+  // writing "Friday, 31 July 2026" against a browser on `en-US` is a mismatch.
+  const label = `${formatDate(day.date, {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
-  })}: ${day.count === 0 ? "no entries" : `${day.count} ${day.count === 1 ? "entry" : "entries"}, ${day.words.toLocaleString()} words`}`;
+  })}: ${day.count === 0 ? "no entries" : `${day.count} ${day.count === 1 ? "entry" : "entries"}, ${formatNumber(day.words)} words`}`;
 
   return (
     <Tooltip>
@@ -340,7 +344,7 @@ function ActivityTable({
               {/* tabular-nums here, where the digits do align vertically. */}
               <td className="py-1.5 text-right tabular-nums">{value.count}</td>
               <td className="py-1.5 text-right tabular-nums">
-                {value.words.toLocaleString()}
+                {formatNumber(value.words)}
               </td>
             </tr>
           ))}
