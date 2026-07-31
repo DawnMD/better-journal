@@ -44,11 +44,11 @@ export const NoteTitle = ({
           orpc.notesRouter.getNoteById.queryKey({ input: { noteId } }),
           (prev) => (prev ? { ...prev, title: nextTitle } : prev),
         );
-        // The journal's note list is keyed by date and timezone, neither of which
-        // this component knows, so match the procedure broadly and let React
-        // Query refetch whichever day is on screen.
+        // The journal's calendar is keyed by visible range and timezone, neither
+        // of which this component knows, so match the procedure broadly and let
+        // React Query refetch whichever grid is on screen.
         queryClient.invalidateQueries({
-          queryKey: orpc.notesRouter.getAllNotesByIdAndDate.key(),
+          queryKey: orpc.notesRouter.getNotesInRange.key(),
         });
         setEdit(null);
       },
