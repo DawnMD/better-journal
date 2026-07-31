@@ -106,7 +106,7 @@ export const NoteEditorContent = ({
   }, [debouncedSave]);
 
   return (
-    <div className="container">
+    <div className="w-full">
       <NoteTitle noteId={note.id} title={note.title ?? ""} />
       <Plate
         editor={editor}
