@@ -1,7 +1,11 @@
 import { ORPCError as ClientORPCError } from "@orpc/client";
 import { ORPCError as ServerORPCError } from "@orpc/server";
 import { describe, expect, it } from "vitest";
-import { isNotFoundError, isRequestError } from "@/lib/orpc.errors";
+import {
+  isConflictError,
+  isNotFoundError,
+  isRequestError,
+} from "@/lib/orpc.errors";
 
 /**
  * These two predicates decide whether a bad URL becomes a 404 or a generic
@@ -30,6 +34,30 @@ describe("isNotFoundError", () => {
     expect(isNotFoundError(new Error("NOT_FOUND"))).toBe(false);
     expect(isNotFoundError(null)).toBe(false);
     expect(isNotFoundError({ code: "NOT_FOUND" })).toBe(false);
+  });
+});
+
+describe("isConflictError", () => {
+  it("matches the CONFLICT renameTag throws, on both sides of the boundary", () => {
+    expect(isConflictError(new ServerORPCError("CONFLICT"))).toBe(true);
+    expect(isConflictError(new ClientORPCError("CONFLICT"))).toBe(true);
+  });
+
+  it("does not match the NOT_FOUND thrown for someone else's tag", () => {
+    // The rename dialog offers a merge on CONFLICT. Confusing the two would
+    // have it offer to merge into a tag the user cannot see.
+    expect(isConflictError(new ServerORPCError("NOT_FOUND"))).toBe(false);
+    expect(isConflictError(new Error("CONFLICT"))).toBe(false);
+    expect(isConflictError(null)).toBe(false);
+  });
+
+  it("preserves the data the client needs to offer the merge", () => {
+    const error = new ServerORPCError("CONFLICT", {
+      data: { reason: "tag-exists", existingTagId: "abc", noteCount: 12 },
+    });
+
+    expect(isConflictError(error)).toBe(true);
+    expect(error.data).toMatchObject({ existingTagId: "abc", noteCount: 12 });
   });
 });
 

@@ -248,9 +248,15 @@ describe("search handles hostile and awkward input", () => {
     expect(phrase.map((r) => r.title)).toEqual(["One"]);
   });
 
-  it("rejects an empty query at the schema boundary", async () => {
+  it("rejects an empty query with no tags", async () => {
+    // Empty text is only meaningful when a tag narrows it; with neither, this
+    // would be "return everything", which is not a search.
     await expect(
       callerFor(USER_A).searchRouter.search({ query: "   " }),
+    ).rejects.toBeDefined();
+
+    await expect(
+      callerFor(USER_A).searchRouter.search({ query: "", tagIds: [] }),
     ).rejects.toBeDefined();
   });
 
@@ -277,6 +283,291 @@ describe("search handles hostile and awkward input", () => {
     });
 
     expect(results).toEqual([]);
+  });
+});
+
+describe("search by tag", () => {
+  /** Tags `noteId` and hands back the new tag's id. */
+  async function tag(userId: string, noteId: string, name: string) {
+    const caller = callerFor(userId);
+    await caller.tagRouter.addTagToNote({ noteId, name });
+    const all = await caller.tagRouter.getAllTags();
+
+    return all.find((t) => t.name === name)!.id;
+  }
+
+  it("accepts an empty query when a tag is given", async () => {
+    // The palette clears the text when you pick a tag chip — the text was how
+    // you found the facet, not part of the search.
+    const journal = await makeJournal(USER_A);
+    const note = await makeSearchableNote(journal.id, "Tagged", "body text");
+    const other = await makeSearchableNote(journal.id, "Untagged", "body text");
+    const workId = await tag(USER_A, note.id, "work");
+
+    const results = await callerFor(USER_A).searchRouter.search({
+      query: "",
+      tagIds: [workId],
+    });
+
+    expect(results.map((r) => r.id)).toEqual([note.id]);
+    expect(results.map((r) => r.id)).not.toContain(other.id);
+  });
+
+  it("returns createdAt-descending with a flat rank when there is no query", async () => {
+    const journal = await makeJournal(USER_A);
+    const older = await makeNote(journal.id, {
+      title: "Older",
+      plainText: "first",
+      createdAt: new Date("2026-07-01T10:00:00Z"),
+    });
+    const newer = await makeNote(journal.id, {
+      title: "Newer",
+      plainText: "second",
+      createdAt: new Date("2026-07-20T10:00:00Z"),
+    });
+
+    const workId = await tag(USER_A, older.id, "work");
+    await callerFor(USER_A).tagRouter.addTagToNote({
+      noteId: newer.id,
+      name: "work",
+    });
+
+    const results = await callerFor(USER_A).searchRouter.search({
+      query: "",
+      tagIds: [workId],
+    });
+
+    // With nothing to rank by, the ORDER BY has to degrade to recency rather
+    // than to an arbitrary order.
+    expect(results.map((r) => r.title)).toEqual(["Newer", "Older"]);
+    expect(results.every((r) => r.rank === 0)).toBe(true);
+  });
+
+  it("falls back to a plain excerpt for the snippet when there is no query", async () => {
+    const journal = await makeJournal(USER_A);
+    const note = await makeSearchableNote(
+      journal.id,
+      "Entry",
+      "A perfectly ordinary sentence about the weather.",
+    );
+    const workId = await tag(USER_A, note.id, "work");
+
+    const [result] = await callerFor(USER_A).searchRouter.search({
+      query: "",
+      tagIds: [workId],
+    });
+
+    expect(result?.snippet).toBe(
+      "A perfectly ordinary sentence about the weather.",
+    );
+    // No highlighting, because nothing was matched.
+    expect(result?.snippet).not.toContain(HL_START);
+  });
+
+  it("ANDs the query and the tag together", async () => {
+    const journal = await makeJournal(USER_A);
+    const both = await makeSearchableNote(journal.id, "Both", "river walk");
+    const queryOnly = await makeSearchableNote(
+      journal.id,
+      "Query only",
+      "river walk",
+    );
+    const tagOnly = await makeSearchableNote(
+      journal.id,
+      "Tag only",
+      "nothing relevant",
+    );
+
+    const workId = await tag(USER_A, both.id, "work");
+    await callerFor(USER_A).tagRouter.addTagToNote({
+      noteId: tagOnly.id,
+      name: "work",
+    });
+
+    const results = await callerFor(USER_A).searchRouter.search({
+      query: "river",
+      tagIds: [workId],
+    });
+
+    expect(results.map((r) => r.id)).toEqual([both.id]);
+    expect(results.map((r) => r.id)).not.toContain(queryOnly.id);
+    expect(results.map((r) => r.id)).not.toContain(tagOnly.id);
+  });
+
+  it("requires every tag, not any of them", async () => {
+    const journal = await makeJournal(USER_A);
+    const both = await makeSearchableNote(journal.id, "Both", "text");
+    const onlyWork = await makeSearchableNote(journal.id, "Only work", "text");
+
+    const workId = await tag(USER_A, both.id, "work");
+    const urgentId = await tag(USER_A, both.id, "urgent");
+    await callerFor(USER_A).tagRouter.addTagToNote({
+      noteId: onlyWork.id,
+      name: "work",
+    });
+
+    const one = await callerFor(USER_A).searchRouter.search({
+      query: "",
+      tagIds: [workId],
+    });
+    expect(one.map((r) => r.title).sort()).toEqual(["Both", "Only work"]);
+
+    const two = await callerFor(USER_A).searchRouter.search({
+      query: "",
+      tagIds: [workId, urgentId],
+    });
+    expect(two.map((r) => r.title)).toEqual(["Both"]);
+  });
+
+  it("never returns a tagged note from a password-protected journal", async () => {
+    // Mandatory. Tag filtering is a *new* way to ask "does a note exist", so it
+    // has to go through the same gate the text path does — otherwise the lock
+    // leaks through the feature that was added last.
+    const journal = await makeJournal(USER_A, { title: "Locked" });
+    const note = await makeSearchableNote(
+      journal.id,
+      "Secret",
+      "very private confession",
+    );
+
+    // Tagged before locking; a tag cannot be attached through the lock.
+    const secretId = await tag(USER_A, note.id, "secret");
+
+    await testDb.journal.update({
+      where: { id: journal.id },
+      data: { hashedPassword: await hash("a-long-enough-password") },
+    });
+
+    expect(
+      await callerFor(USER_A).searchRouter.search({
+        query: "",
+        tagIds: [secretId],
+      }),
+    ).toEqual([]);
+
+    // And not through the combined path either.
+    expect(
+      await callerFor(USER_A).searchRouter.search({
+        query: "confession",
+        tagIds: [secretId],
+      }),
+    ).toEqual([]);
+  });
+
+  it("never returns a tagged note from a trashed journal", async () => {
+    const journal = await makeJournal(USER_A);
+    const note = await makeSearchableNote(journal.id, "Trashed", "findable");
+    const tagId = await tag(USER_A, note.id, "work");
+
+    await testDb.journal.update({
+      where: { id: journal.id },
+      data: { trash: true },
+    });
+
+    expect(
+      await callerFor(USER_A).searchRouter.search({
+        query: "",
+        tagIds: [tagId],
+      }),
+    ).toEqual([]);
+  });
+
+  it("refuses a tag id belonging to another user", async () => {
+    const journalA = await makeJournal(USER_A);
+    const noteA = await makeSearchableNote(journalA.id, "A", "text");
+    const tagId = await tag(USER_A, noteA.id, "private");
+
+    // An explicit refusal rather than an empty list: results are user-scoped
+    // regardless, so this is about saying so, not about confidentiality.
+    await expect(
+      callerFor(USER_B).searchRouter.search({ query: "", tagIds: [tagId] }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("refuses a tag id that does not exist at all", async () => {
+    await expect(
+      callerFor(USER_A).searchRouter.search({
+        query: "",
+        tagIds: ["cnonexistenttagidaaaaaaaa"],
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("rejects more tags than the filter cap allows", async () => {
+    await expect(
+      callerFor(USER_A).searchRouter.search({
+        query: "anything",
+        tagIds: Array.from({ length: 11 }, (_, i) => `tag-${i}`),
+      }),
+    ).rejects.toBeDefined();
+  });
+
+  it("scopes a tag search to one journal when asked", async () => {
+    const first = await makeJournal(USER_A, { title: "First" });
+    const second = await makeJournal(USER_A, { title: "Second" });
+    const noteOne = await makeSearchableNote(first.id, "A", "text");
+    const noteTwo = await makeSearchableNote(second.id, "B", "text");
+
+    const workId = await tag(USER_A, noteOne.id, "work");
+    await callerFor(USER_A).tagRouter.addTagToNote({
+      noteId: noteTwo.id,
+      name: "work",
+    });
+
+    const all = await callerFor(USER_A).searchRouter.search({
+      query: "",
+      tagIds: [workId],
+    });
+    expect(all).toHaveLength(2);
+
+    const scoped = await callerFor(USER_A).searchRouter.search({
+      query: "",
+      tagIds: [workId],
+      journalId: first.id,
+    });
+    expect(scoped.map((r) => r.id)).toEqual([noteOne.id]);
+  });
+
+  it("finds a tag that spans two journals, since tags belong to the user", async () => {
+    const work = await makeJournal(USER_A, { title: "Work" });
+    const home = await makeJournal(USER_A, { title: "Home" });
+    const noteOne = await makeSearchableNote(work.id, "At work", "text");
+    const noteTwo = await makeSearchableNote(home.id, "At home", "text");
+
+    const ideaId = await tag(USER_A, noteOne.id, "ideas");
+    await callerFor(USER_A).tagRouter.addTagToNote({
+      noteId: noteTwo.id,
+      name: "ideas",
+    });
+
+    const results = await callerFor(USER_A).searchRouter.search({
+      query: "",
+      tagIds: [ideaId],
+    });
+
+    expect(results.map((r) => r.journalTitle).sort()).toEqual(["Home", "Work"]);
+  });
+
+  it("honours the limit on a tag-only search", async () => {
+    const journal = await makeJournal(USER_A);
+    const first = await makeSearchableNote(journal.id, "Note 0", "text");
+    const tagId = await tag(USER_A, first.id, "work");
+
+    for (let i = 1; i < 5; i++) {
+      const note = await makeSearchableNote(journal.id, `Note ${i}`, "text");
+      await callerFor(USER_A).tagRouter.addTagToNote({
+        noteId: note.id,
+        name: "work",
+      });
+    }
+
+    const results = await callerFor(USER_A).searchRouter.search({
+      query: "",
+      tagIds: [tagId],
+      limit: 3,
+    });
+
+    expect(results).toHaveLength(3);
   });
 });
 
