@@ -77,6 +77,21 @@ So the zone is an explicit input from the client, and every day boundary goes th
 
 Both casts are load-bearing. A single `AT TIME ZONE` reads the naive stored value as though it were *already* local and shifts it the wrong way.
 
+### Missing is a 404, not an error
+
+An id that doesn't resolve is an ordinary navigation outcome — a stale bookmark, a journal emptied from trash, someone else's id — so it renders a not-found boundary with a real 404 status rather than "something went wrong".
+
+That decision has to happen on the *server*, which is the one place prefetching gets in the way: `prefetchQuery` swallows its failures, so a page that only prefetches ships a 200 and discovers the journal is gone when the client re-runs the query, by which point an error boundary is the best it can do. So `/journal/[journalId]` and `/journal/[journalId]/[noteId]` **await** the query that establishes existence — the result is cached either way, so hydration is unaffected — and call `notFound()`:
+
+```ts
+const journal = await queryClient.fetchQuery(/* getJournalById */);
+if (!journal) notFound();
+```
+
+Three boundaries, because context is what makes a 404 useful: the root one for unmatched URLs, `(main-app)/not-found.tsx` inside the shell so the sidebar and ⌘K survive a dead journal link, and one scoped to `[noteId]` that offers the way back to its journal. The note page also 404s when the note is real but the journal id in the URL isn't its own — otherwise the note renders under a journal it never belonged to.
+
+The error boundaries keep what's left: a locked journal, an unreachable database. Failures worth a "try again", which a deleted note never is. And 4xx answers are excluded from React Query's retries — three retries with backoff would leave a 404 spinning for seconds before the page could declare it.
+
 ---
 
 ## Local setup
