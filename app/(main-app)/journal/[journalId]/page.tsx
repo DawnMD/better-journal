@@ -4,6 +4,7 @@ import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
 import { serverTimeZone } from "@/lib/timezone.server";
 import { format } from "date-fns";
+import { notFound } from "next/navigation";
 
 export default async function JournalIdPage({
   params,
@@ -23,12 +24,10 @@ export default async function JournalIdPage({
 
   const queryClient = getQueryClient();
 
+  // Started before the existence check below so all three round trips overlap.
+  // prefetchQuery swallows its own failures, so if the journal turns out not to
+  // resolve these just go nowhere — the 404 is decided by the awaited query.
   Promise.all([
-    queryClient.prefetchQuery(
-      orpc.journalRouter.getJournalById.queryOptions({
-        input: { id: journalId },
-      }),
-    ),
     queryClient.prefetchQuery(
       orpc.notesRouter.getAllNotesByIdAndDate.queryOptions({
         input: {
@@ -44,6 +43,19 @@ export default async function JournalIdPage({
       }),
     ),
   ]);
+
+  // Awaited, unlike the two above: an id that does not resolve has to become a
+  // real 404 — status code and all — here on the server. Prefetching it instead
+  // would hand the browser a page that only discovers the journal is gone once
+  // the client re-runs the query, by which point the best it can do is an error
+  // boundary. The result is still cached, so the client query below is free.
+  const journal = await queryClient.fetchQuery(
+    orpc.journalRouter.getJournalById.queryOptions({
+      input: { id: journalId },
+    }),
+  );
+
+  if (!journal) notFound();
 
   return (
     <HydrateClient client={queryClient}>

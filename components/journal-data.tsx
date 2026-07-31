@@ -108,10 +108,11 @@ export const JournalData = ({ id }: { id: string }) => {
     }),
   );
 
-  // useSuspenseQuery throws on failure rather than returning isError, so the
-  // only reachable branch here is a journal that does not exist or is not ours.
-  // Query failures are handled by the nearest error.tsx boundary.
-  if (!journal) return notFound();
+  // The page already 404s on the server for a journal that does not resolve, so
+  // this covers the narrow window the server cannot: a journal trashed from
+  // another tab while this one is open, which comes back null on the next
+  // refetch. Same destination either way — the (main-app) not-found boundary.
+  if (!journal) notFound();
 
   return (
     <div>

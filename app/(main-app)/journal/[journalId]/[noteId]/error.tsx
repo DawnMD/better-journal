@@ -9,9 +9,15 @@ import { useEffect } from "react";
 /**
  * Scoped boundary for a single note.
  *
- * Nested under the journal route on purpose: a note id that does not resolve —
- * a stale bookmark, a deleted entry, someone else's id — degrades to this panel
- * while the sidebar and journal shell stay usable, instead of blanking the app.
+ * Nested under the journal route on purpose: a note that will not load degrades
+ * to this panel while the sidebar and journal shell stay usable, instead of
+ * blanking the app.
+ *
+ * This is failures only. A note id that does not resolve — a stale bookmark, a
+ * deleted entry, someone else's id — is a 404 and is caught by the not-found
+ * boundary beside this file, so "try again" is never offered for a note that is
+ * simply gone. What lands here is a locked journal or an unreachable server:
+ * both worth retrying.
  */
 export default function NoteError({
   error,
@@ -33,7 +39,8 @@ export default function NoteError({
           This note couldn&apos;t be opened
         </h2>
         <p className="max-w-md text-sm text-muted-foreground">
-          It may have been deleted, or the link may be wrong.
+          The note is still there — this is a problem reaching it. If the journal
+          is password-protected, unlock it and try again.
         </p>
       </div>
       <div className="flex gap-2">
@@ -42,7 +49,11 @@ export default function NoteError({
           Try again
         </Button>
         {params?.journalId && (
-          <Button variant="outline" render={<Link href={`/journal/${params.journalId}`} />}>
+          <Button
+            nativeButton={false}
+            variant="outline"
+            render={<Link href={`/journal/${params.journalId}`} />}
+          >
             <ArrowLeftIcon />
             Back to journal
           </Button>

@@ -3,6 +3,7 @@ import {
   defaultShouldDehydrateQuery,
   environmentManager,
 } from "@tanstack/react-query";
+import { isRequestError } from "@/lib/orpc.errors";
 import { serializer } from "@/lib/serializer";
 
 function makeQueryClient() {
@@ -14,6 +15,12 @@ function makeQueryClient() {
           return JSON.stringify({ json, meta });
         },
         staleTime: 60 * 1000, // > 0 to prevent immediate refetching on mount
+        // A 4xx is an answer, not a blip. React Query's default is three
+        // retries with backoff, which would have a page that resolves a missing
+        // journal sit for seconds before it could call notFound() — and would
+        // re-ask a locked journal for content it will keep refusing.
+        retry: (failureCount, error) =>
+          !isRequestError(error) && failureCount < 3,
       },
       dehydrate: {
         shouldDehydrateQuery: (query) =>
