@@ -16,6 +16,7 @@ import {
   Moon,
   SearchIcon,
   Sun,
+  TagsIcon,
   Trash2Icon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -56,6 +57,16 @@ export function NavMain() {
             <SearchIcon />
             <span>Search</span>
             <kbd className="ml-auto text-xs text-muted-foreground">⌘K</kbd>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            onClick={() => setOpenMobile(false)}
+            tooltip={"Tags"}
+            render={<Link href={"/tags"} />}
+          >
+            <TagsIcon />
+            <span>Tags</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>

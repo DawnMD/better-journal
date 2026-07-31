@@ -16,6 +16,15 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { Fragment } from "react";
 
+/**
+ * Pages that sit directly under Home. A table rather than a chain of `else if`,
+ * so adding the next one is a line here instead of another branch below.
+ */
+const STANDALONE_CRUMBS: Record<string, string> = {
+  "/trash": "Trash",
+  "/tags": "Tags",
+};
+
 type Crumb = {
   key: string;
   label: string;
@@ -57,8 +66,12 @@ export function AppBreadcrumb() {
 
   const crumbs: Crumb[] = [{ key: "home", label: "Home", href: "/dashboard" }];
 
-  if (pathname === "/trash") {
-    crumbs.push({ key: "trash", label: "Trash" });
+  // Top-level pages that have no journal in their path, and would otherwise
+  // render as a lone "Home" crumb.
+  const standalone = STANDALONE_CRUMBS[pathname];
+
+  if (standalone) {
+    crumbs.push({ key: pathname, label: standalone });
   } else if (journalId) {
     const journal = journals?.find((item) => item.id === journalId);
 

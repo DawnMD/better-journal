@@ -43,11 +43,21 @@ export default async function JournalIdPage({
   // Started before the existence check below so both round trips overlap.
   // prefetchQuery swallows its own failures, so if the journal turns out not to
   // resolve this just goes nowhere — the 404 is decided by the awaited query.
-  const prefetching = queryClient.prefetchQuery(
-    orpc.notesRouter.getNotesInRange.queryOptions({
-      input: { journalId, ...range, timeZone },
-    }),
-  );
+  const prefetching = Promise.all([
+    queryClient.prefetchQuery(
+      orpc.notesRouter.getNotesInRange.queryOptions({
+        input: { journalId, ...range, timeZone },
+      }),
+    ),
+    // The filter bar's tag list. Called with no argument, exactly as the client
+    // calls it — `getAllTags` takes `z.void()`, and `.queryOptions({})` would
+    // not necessarily hash to the same key as `.queryOptions()`, which would
+    // quietly cost a second request on every load.
+    //
+    // `?tags=` is deliberately *not* read here: the filter runs client-side over
+    // this same range, so it does not change what needs prefetching.
+    queryClient.prefetchQuery(orpc.tagRouter.getAllTags.queryOptions()),
+  ]);
 
   // Awaited, unlike the one above: an id that does not resolve has to become a
   // real 404 — status code and all — here on the server. Prefetching it instead

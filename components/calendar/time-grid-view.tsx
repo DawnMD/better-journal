@@ -177,6 +177,9 @@ export const TimeGridView = ({
                       // The time is already given by the vertical position, and
                       // a narrow lane needs every pixel for the title.
                       showTime={lanes === 1}
+                      // Same threshold, same reason: a full-width lane has room
+                      // to name a tag, a shared one does not.
+                      tagStyle={lanes === 1 ? "chips" : "dots"}
                       className="h-full"
                     />
                   </div>

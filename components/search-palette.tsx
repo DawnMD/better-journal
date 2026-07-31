@@ -1,9 +1,9 @@
 "use client";
 
+import { TagChip } from "@/components/tags/tag-chip";
 import {
   Command,
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -37,6 +37,11 @@ export const SearchPalette = () => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
+  // Component state, not the URL. The palette is mounted once in the app layout
+  // and opens over whatever page you are on, so writing a facet into the address
+  // bar would rewrite the URL of a page that has nothing to do with it.
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
   // 200ms is short enough to feel live and long enough that a fast typist does
   // not fire a full-text query per keystroke.
   const [debouncedQuery] = useDebounce(query.trim(), 200);
@@ -63,27 +68,77 @@ export const SearchPalette = () => {
     };
   }, []);
 
+  // No `searchTags` procedure: getAllTags is one indexed query returning a
+  // bounded list, this palette already filters client-side (`shouldFilter`
+  // is off), and sharing the cache entry with the editor combobox, the calendar
+  // filter bar and the tag manager means it is usually already warm.
+  const { data: allTags } = useQuery({
+    ...orpc.tagRouter.getAllTags.queryOptions(),
+    enabled: open,
+    staleTime: 5 * 60_000,
+  });
+
+  // Sorted so that picking A then B hits the same cache entry as B then A — the
+  // oRPC query key is structural, so the array's order is part of it. Sent as
+  // `undefined` rather than `[]` for the same reason: they are different keys.
+  const sortedTagIds = [...selectedTagIds].sort();
+  const hasTags = sortedTagIds.length > 0;
+
   const { data: results, isFetching } = useQuery({
     ...orpc.searchRouter.search.queryOptions({
-      input: { query: debouncedQuery, limit: 20 },
+      input: {
+        query: debouncedQuery,
+        tagIds: hasTags ? sortedTagIds : undefined,
+        limit: 20,
+      },
     }),
-    // The procedure rejects an empty query, so do not ask until there is one.
-    enabled: debouncedQuery.length > 0,
+    // The procedure rejects an empty query *with no tags*, so either one is
+    // enough to ask.
+    enabled: debouncedQuery.length > 0 || hasTags,
     // Results are stable for a given query; no need to refetch on reopen.
     staleTime: 30_000,
   });
 
+  // Kept in the order they were picked, not alphabetical, so the chip Backspace
+  // removes is the one visually last. `sortedTagIds` above is a separate copy
+  // precisely so the cache key can be order-independent while the display is not.
+  const selectedTags = selectedTagIds.flatMap(
+    (id) => (allTags ?? []).find((tag) => tag.id === id) ?? [],
+  );
+
+  const tagMatches = (allTags ?? [])
+    .filter(
+      (tag) =>
+        !selectedTagIds.includes(tag.id) &&
+        tag.name.includes(debouncedQuery.toLowerCase()),
+    )
+    .slice(0, 5);
+
+  const addTag = (tagId: string) => {
+    setSelectedTagIds((previous) =>
+      previous.includes(tagId) ? previous : [...previous, tagId],
+    );
+    // The text was how the facet was *found*, not part of what is being searched
+    // for — so it goes once the facet is pinned. This is what the router's
+    // empty-query relaxation exists for.
+    setQuery("");
+  };
+
+  const removeTag = (tagId: string) =>
+    setSelectedTagIds((previous) => previous.filter((id) => id !== tagId));
+
   const select = (journalId: string, noteId: string) => {
     setOpen(false);
     setQuery("");
+    setSelectedTagIds([]);
     router.push(`/journal/${journalId}/${noteId}`);
   };
 
   // While the debounce is still settling, keep showing the previous results
   // rather than flashing "No notes found" between keystrokes.
   const isSettling = query.trim() !== debouncedQuery;
-  const showEmpty =
-    debouncedQuery.length > 0 && !isFetching && !isSettling && !results?.length;
+  const isAsking = debouncedQuery.length > 0 || hasTags;
+  const showEmpty = isAsking && !isFetching && !isSettling && !results?.length;
 
   return (
     <CommandDialog
@@ -95,18 +150,75 @@ export const SearchPalette = () => {
     >
       <Command shouldFilter={false}>
         <CommandInput
-          placeholder="Search your notes..."
+          placeholder={
+            hasTags ? "Narrow it down..." : "Search your notes..."
+          }
           value={query}
           onValueChange={setQuery}
+          onKeyDown={(event) => {
+            // Backspace on an empty input drops the last chip — the convention
+            // every tokenised input follows, and the only way to undo a pick
+            // without reaching for the mouse.
+            if (event.key === "Backspace" && query.length === 0 && hasTags) {
+              event.preventDefault();
+              removeTag(selectedTagIds[selectedTagIds.length - 1]!);
+            }
+          }}
         />
+
+        {/* A plain div inside Command, not a CommandItem: cmdk only manages
+            descendants of CommandList, so this row is inert as far as its
+            keyboard navigation is concerned. */}
+        {selectedTags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 px-3 pt-2">
+            {selectedTags.map((tag) => (
+              <TagChip
+                key={tag.id}
+                name={tag.name}
+                size="sm"
+                onRemove={() => removeTag(tag.id)}
+              />
+            ))}
+          </div>
+        )}
+
         <CommandList>
-          {debouncedQuery.length === 0 && (
+          {!isAsking && (
             <div className="py-6 text-center text-sm text-muted-foreground">
-              Type to search your notes.
+              Type to search, or pick a tag.
             </div>
           )}
 
-          {showEmpty && <CommandEmpty>No notes found.</CommandEmpty>}
+          {tagMatches.length > 0 && (
+            <CommandGroup heading="Tags">
+              {tagMatches.map((tag) => (
+                <CommandItem
+                  // Prefixed so a tag id can never collide with a note id in
+                  // the results below — cmdk requires values to be unique.
+                  key={tag.id}
+                  value={`tag:${tag.id}`}
+                  onSelect={() => addTag(tag.id)}
+                >
+                  <TagChip name={tag.name} size="sm" />
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                    {tag.noteCount}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {/* A plain div rather than CommandEmpty: cmdk only renders its Empty
+              when the list has no items at all, so with a "Tags" group on
+              screen the message would be swallowed exactly when a tag filter
+              has matched nothing — the case most in need of an explanation. */}
+          {showEmpty && (
+            <div className="py-6 text-center text-sm">
+              {hasTags && debouncedQuery.length === 0
+                ? "No notes with those tags."
+                : "No notes found."}
+            </div>
+          )}
 
           {!!results?.length && (
             <CommandGroup
@@ -139,7 +251,7 @@ export const SearchPalette = () => {
             </CommandGroup>
           )}
 
-          {(isFetching || isSettling) && debouncedQuery.length > 0 && (
+          {(isFetching || isSettling) && isAsking && (
             <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
               <Loader2Icon className="size-3 animate-spin" />
               Searching...

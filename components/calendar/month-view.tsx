@@ -143,6 +143,10 @@ export const MonthView = ({
                     // answers "what did I write", the time grid answers "when" —
                     // so the clock stays there, and the title gets the pixels.
                     showTime={false}
+                    // Same width argument: a named chip would leave nothing for
+                    // the title, so tags shrink to dots that carry their name in
+                    // a title and an aria-label instead.
+                    tagStyle="dots"
                   />
                 ))}
                 {hidden > 0 && (

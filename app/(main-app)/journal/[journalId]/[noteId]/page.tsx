@@ -11,6 +11,18 @@ export default async function NotePage({
   const { journalId, noteId } = await params;
   const queryClient = getQueryClient();
 
+  // Started before the awaited fetch below so all three round trips overlap.
+  // prefetchQuery swallows its own failures, so a note the user does not own
+  // just goes nowhere here — the 404 is still decided by the awaited query.
+  const prefetching = Promise.all([
+    queryClient.prefetchQuery(
+      orpc.tagRouter.getTagsForNote.queryOptions({ input: { noteId } }),
+    ),
+    // The combobox's suggestion list. Shared with the calendar filter bar and
+    // the tag manager, so this is usually already warm.
+    queryClient.prefetchQuery(orpc.tagRouter.getAllTags.queryOptions()),
+  ]);
+
   // Fetched rather than prefetched so a note that does not resolve becomes a
   // 404 on the server. getNoteById throws NOT_FOUND for a deleted note, someone
   // else's note, or one whose journal is in the trash — all of which are wrong
@@ -38,6 +50,10 @@ export default async function NotePage({
   // render under a journal it does not belong to, with a breadcrumb naming that
   // other journal and a "back" link that leads somewhere it was never listed.
   if (note.journalId !== journalId) notFound();
+
+  // Awaited only now, so the tags land in the dehydrated state rather than
+  // racing it. Failure here is not fatal — the client refetches.
+  await prefetching;
 
   return (
     <HydrateClient client={queryClient}>

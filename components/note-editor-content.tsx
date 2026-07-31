@@ -1,6 +1,7 @@
 "use client";
 
 import { NoteTitle } from "@/components/note-title";
+import { NoteTags } from "@/components/tags/note-tags";
 import { BlockquoteElement } from "@/components/ui/blockquote-node";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 import { FixedToolbar } from "@/components/ui/fixed-toolbar";
@@ -108,6 +109,10 @@ export const NoteEditorContent = ({
   return (
     <div className="w-full">
       <NoteTitle noteId={note.id} title={note.title ?? ""} />
+      {/* Above the Plate surface rather than inside it: the combobox opens a
+          popover, and a popover mounted within the editor would fight Plate for
+          the selection every time it took focus. */}
+      <NoteTags noteId={note.id} />
       <Plate
         editor={editor}
         onValueChange={() => {
