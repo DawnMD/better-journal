@@ -34,14 +34,6 @@ model Note {
   /// than walking the Plate JSON — simpler and much faster to index.
   plainText String?
   tags      Tag[]
-  /// Themes extracted by the AI pass. Empty until analysis runs, and the feature
-  /// is env-gated, so every reader must treat these as optional.
-  aiThemes  String[] @default([])
-  /// One-word mood label from the same pass. Null when not yet analysed.
-  aiMood    String?
-  /// When the AI analysis last ran, so re-analysis can be skipped for unchanged
-  /// notes rather than re-billed.
-  aiAnalyzedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -58,24 +50,6 @@ model Note {
 /// Tags belong to a user, not to a journal, so the same tag can span journals.
 /// Every query must be scoped by userId — the unique constraint is on
 /// ([userId, name]), so two users can independently own a tag called "work".
-/// Per-user, per-day AI request counter.
-///
-/// A Postgres row rather than Redis: the limit only needs to be roughly right,
-/// the app already has a database, and adding a second datastore for one integer
-/// is not a trade worth making. The unique constraint on ([userId, day]) makes
-/// the upsert atomic, so concurrent requests cannot both read the same count.
-model AiUsage {
-  id        String   @id @default(cuid())
-  userId    String
-  /// Calendar day in UTC, `yyyy-MM-dd`. UTC deliberately: the quota is a billing
-  /// control, not a user-facing calendar, so it should not shift with timezone.
-  day       String
-  count     Int      @default(0)
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, day])
-}
-
 model Tag {
   id        String   @id @default(cuid())
   name      String

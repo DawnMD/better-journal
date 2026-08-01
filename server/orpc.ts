@@ -1,4 +1,3 @@
-import { env } from "@/env";
 import { ORPCError, os } from "@orpc/server";
 import { Context } from "./context";
 
@@ -39,36 +38,6 @@ export const base = os
   .use(withArtificialDelay);
 
 export const publicProcedure = base;
-
-/**
- * Requires AI insights to be both enabled and configured.
- *
- * This is the enforcement point. `NEXT_PUBLIC_AI_INSIGHTS_ENABLED` only hides
- * the UI — it ships in the browser bundle, where anyone can flip it — so the
- * decision has to be re-made server-side on every call.
- *
- * Both conditions are required: the flag says the operator wants the feature on,
- * and the key says it can actually work. A flag without a key would surface as a
- * confusing 500 from the SDK instead of an honest "not available here".
- *
- * NOT_IMPLEMENTED rather than FORBIDDEN: the caller has done nothing wrong and
- * no permission would change the outcome — this deployment simply does not run
- * this feature.
- */
-export const aiProcedure = base
-  .use(async ({ context, next }) => {
-    const user = context.userId;
-
-    if (!user) throw new ORPCError("UNAUTHORIZED");
-
-    if (env.AI_INSIGHTS_ENABLED !== "true" || !env.ANTHROPIC_API_KEY) {
-      throw new ORPCError("NOT_IMPLEMENTED", {
-        message: "AI insights are not enabled on this deployment.",
-      });
-    }
-
-    return next({ context: { ...context, userId: user } });
-  });
 
 export const protectedProcedure = base.use(async ({ context, next }) => {
   const user = context.userId;

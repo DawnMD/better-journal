@@ -9,13 +9,6 @@ export const env = createEnv({
     // Direct (non-pooled) connection, read by prisma.config.ts for migrations.
     DATABASE_URL_UNPOOLED: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]),
-
-    // AI insights. Both optional: the app must build and run with neither set,
-    // which is what keeps the feature genuinely opt-in rather than a soft
-    // requirement. The server-side gate in server/orpc.ts requires the flag to
-    // be "true" AND the key to be present.
-    ANTHROPIC_API_KEY: z.string().optional(),
-    AI_INSIGHTS_ENABLED: z.enum(["true", "false"]).default("false"),
   },
   client: {
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string(),
@@ -23,11 +16,6 @@ export const env = createEnv({
     NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: z.string(),
     NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: z.string(),
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
-
-    // Hides the AI panels without a roundtrip. Convenience only — anyone can set
-    // this to "true" in a built bundle, so it is NOT the access control. The
-    // enforcement is aiProcedure in server/orpc.ts.
-    NEXT_PUBLIC_AI_INSIGHTS_ENABLED: z.enum(["true", "false"]).default("false"),
   },
   // If you're using Next.js < 13.4.4, you'll need to specify the runtimeEnv manually
   runtimeEnv: {
@@ -43,9 +31,6 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
     NODE_ENV: process.env.NODE_ENV,
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-    AI_INSIGHTS_ENABLED: process.env.AI_INSIGHTS_ENABLED,
-    NEXT_PUBLIC_AI_INSIGHTS_ENABLED: process.env.NEXT_PUBLIC_AI_INSIGHTS_ENABLED,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,

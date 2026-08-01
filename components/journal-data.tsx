@@ -1,6 +1,5 @@
 "use client";
 
-import { AiInsightsPanel } from "@/components/ai/ai-insights-panel";
 import { JournalCalendar } from "@/components/calendar/journal-calendar";
 import { ExportJournalButton } from "@/components/export-journal-button";
 import { orpc } from "@/lib/orpc.query";
@@ -44,11 +43,6 @@ export const JournalData = ({
       </header>
 
       <JournalCalendar journalId={id} serverToday={serverToday} />
-
-      {/* Renders nothing unless AI insights are enabled for this deployment. */}
-      <div className="mt-4">
-        <AiInsightsPanel journalId={id} />
-      </div>
     </div>
   );
 };

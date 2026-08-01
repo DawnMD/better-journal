@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/DawnMD/better-journal/actions/workflows/ci.yml/badge.svg)](https://github.com/DawnMD/better-journal/actions/workflows/ci.yml)
 
-A private journaling app built around the question *"what did I actually write this year?"* — a rich-text editor with autosave, full-text search across every entry, password-protected journals, and a dashboard that turns a year of writing into streaks, a contribution heatmap, and word counts. Optional AI insights can summarise a week, label the mood of an entry, and answer questions about your own writing.
+A private journaling app built around the question *"what did I actually write this year?"* — a rich-text editor with autosave, full-text search across every entry, password-protected journals, and a dashboard that turns a year of writing into streaks, a contribution heatmap, and word counts.
 
 > **Screenshot:** run `pnpm db:seed -- --user <your-clerk-id>` then `pnpm dev` and capture `/dashboard`. Save it to `docs/dashboard.png` and reference it here — the seeded dataset spans six months, so the heatmap and charts have real shape.
 
@@ -107,7 +107,7 @@ pnpm dev
 
 ### Seed data
 
-The dashboard, search, and AI features are all hard to evaluate against an empty database:
+The dashboard and search are both hard to evaluate against an empty database:
 
 ```bash
 pnpm db:seed -- --user user_2abc...    # 3 journals, ~250 entries over 180 days
@@ -129,7 +129,7 @@ Find your Clerk user id in the Clerk dashboard. The generator is seeded, so reru
 
 ## Tests
 
-194 tests, run against a **real Postgres** rather than a mocked Prisma client. That is the whole point: the bugs worth catching here live in relation filters, `updateMany` predicates, and timezone-shifted `GROUP BY` — none of which a mock evaluates. A mocked test proves you called Prisma, not that the query is correct.
+226 tests, run against a **real Postgres** rather than a mocked Prisma client. That is the whole point: the bugs worth catching here live in relation filters, `updateMany` predicates, and timezone-shifted `GROUP BY` — none of which a mock evaluates. A mocked test proves you called Prisma, not that the query is correct.
 
 `tests/global-setup.ts` creates and migrates a throwaway database; each test truncates. Procedures are called directly through `createRouterClient(router, { context: { db, userId } })`, so the real middleware chain runs with no HTTP layer to stand up.
 
@@ -140,28 +140,8 @@ What's covered:
 - **Timezones** — DST-boundary day windows (23h and 25h), half-hour and 45-minute offsets, and month-grid-vs-day-view agreement across five zones.
 - **Calendar geometry** — grid extents, the six-week range cap against `rangeWindow`'s, overlap packing, and query-string params that would otherwise 500 out of `format`.
 - **Search** — stemming, title-over-body ranking, prefix matching, and tsquery operator input that would otherwise 500.
-- **The AI gate** — every AI procedure refuses with no key present, which is how CI runs.
 
 CI runs lint → typecheck → test → build against a `postgres:16` service container on every push and PR.
-
----
-
-## AI insights (optional)
-
-Off unless `AI_INSIGHTS_ENABLED=true` **and** `ANTHROPIC_API_KEY` are both set. The app builds, runs, and passes its full test suite with neither — the panels simply don't render and the procedures return `NOT_IMPLEMENTED`.
-
-The gate is server-side. `NEXT_PUBLIC_AI_INSIGHTS_ENABLED` only hides UI; it ships in the browser bundle where anyone can flip it, so it is explicitly not the access control.
-
-Three features, all on `claude-opus-5`: a weekly summary (themes, tone, a short reflection), per-entry theme and mood extraction stored on the note so the dashboard can chart mood over time, and a streaming "ask your journal" chat over a bounded date range.
-
-Notes on the integration, since they're easy to get wrong:
-
-- Structured output uses a **hand-written JSON Schema**, not the SDK's zod helper — this repo has a live zod-version skew, and adding a second version constraint to that path would be asking for the original build break again.
-- `stop_reason === "refusal"` is checked **before** `content` is read. On a refusal `content` is empty, so indexing `content[0]` throws a `TypeError` instead of surfacing the reason.
-- The prompt cache breakpoint sits after the system prompt and entries and before the varying question. `usage.cache_read_input_tokens` is logged — zero across repeat asks means something in the prefix is varying.
-- Entries are put directly in context (Opus 5 has a 1M-token window). **pgvector RAG is the next step if entry volume outgrows that** — building a vector store before there's a corpus to justify it would be speculative.
-
-Rate limiting is a Postgres row unique on `(userId, day)`, so concurrent requests can't both read the same count. No Redis for one integer.
 
 ---
 
@@ -170,5 +150,4 @@ Rate limiting is a Postgres row unique on `(userId, day)`, so concurrent request
 - **Playwright E2E.** The router layer is well covered; the browser path (sign in → write → autosave → reload) is not. `@clerk/testing` makes the auth part tractable.
 - **PDF export.** Markdown and JSON ship; PDF needs a headless browser or a LaTeX toolchain in the deploy image, and Markdown converts with any tool you already have.
 - **Offline drafts.** Autosave assumes connectivity. An IndexedDB queue that flushes on reconnect would make the app usable on a train.
-- **pgvector for AI.** Only once someone's corpus outgrows the context window.
 - **Shared journals.** The schema is single-owner throughout; collaboration means a join table and revisiting every `assertJournalOwned` call — worth doing deliberately rather than bolting on.

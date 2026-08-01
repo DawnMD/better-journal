@@ -67,8 +67,6 @@ export const exportRouter = {
           plainText: true,
           createdAt: true,
           updatedAt: true,
-          aiThemes: true,
-          aiMood: true,
           tags: { select: { name: true }, orderBy: { name: "asc" } },
         },
         orderBy: { createdAt: "asc" },
@@ -104,8 +102,6 @@ export const exportRouter = {
                 createdAt: note.createdAt,
                 updatedAt: note.updatedAt,
                 tags: note.tags.map((tag) => tag.name),
-                aiThemes: note.aiThemes,
-                aiMood: note.aiMood,
                 // Both shapes: `content` round-trips back into the editor,
                 // `plainText` is what a script or grep actually wants.
                 content: note.content,
