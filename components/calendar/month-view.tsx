@@ -48,12 +48,15 @@ export const MonthView = ({
   onOpenDay: (day: Date) => void;
 }) => {
   return (
-    <div className="overflow-hidden rounded-lg border">
-      <div className="grid grid-cols-7 border-b bg-muted/40">
+    <div className="overflow-hidden rounded-lg border border-border/60">
+      {/* No fill behind the weekday row — the hairline under it is enough to
+          separate a header from a grid, and a tinted strip is a band of colour
+          across the widest element on the page for no information. */}
+      <div className="grid grid-cols-7 border-b border-border/60">
         {WEEKDAYS.map((weekday) => (
           <div
             key={weekday}
-            className="px-2 py-1.5 text-center text-xs font-medium text-muted-foreground"
+            className="px-2 py-2 text-center font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase"
           >
             {/* The three-letter name is the accessible one; narrow screens get a
                 single letter, so the full name stays available to a reader. */}
@@ -92,12 +95,16 @@ export const MonthView = ({
               // reaches the same day.
               onClick={() => onSelectDay(day)}
               className={cn(
-                "min-h-28 border-t border-l p-1 text-left transition-colors",
+                "min-h-28 border-t border-l border-border/60 p-1 text-left transition-colors",
                 // The header already draws the grid's top edge, and the
                 // container clips its left one.
                 "[&:nth-child(7n+1)]:border-l-0 [&:nth-child(-n+7)]:border-t-0",
-                outside ? "bg-muted/30" : "bg-background hover:bg-muted/40",
-                isSelected && "bg-accent/60 hover:bg-accent/60",
+                // Days outside the month recede rather than getting a fill of
+                // their own. A `bg-muted/30` block put a second colour into the
+                // grid to encode something the dimmed numbers already say, and
+                // on paper it read as a stain rather than as "not this month".
+                outside ? "opacity-45" : "hover:bg-muted/40",
+                isSelected && "bg-accent/70 hover:bg-accent/70",
               )}
             >
               <div className="mb-1 flex items-center justify-between gap-1">
@@ -113,11 +120,15 @@ export const MonthView = ({
                       : `, ${notes.length} ${notes.length === 1 ? "note" : "notes"}`
                   }`}
                   className={cn(
-                    "flex size-6 items-center justify-center rounded-full text-xs tabular-nums",
+                    "flex size-6 items-center justify-center rounded-full font-mono text-[11px] tabular-nums",
                     "hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                     outside && "text-muted-foreground",
+                    // A clay ring, not a filled ink disc. Today is worth marking,
+                    // but a solid black circle is the heaviest mark on the grid —
+                    // heavier than any actual entry — which puts the emphasis on
+                    // the date rather than on what was written.
                     isToday &&
-                      "bg-primary font-semibold text-primary-foreground hover:bg-primary/80",
+                      "ring-1 ring-brand text-brand hover:bg-brand/10",
                   )}
                 >
                   {format(day, "d")}
@@ -125,7 +136,7 @@ export const MonthView = ({
                 {notes.length > 0 && (
                   <span
                     aria-hidden
-                    className="pr-0.5 text-[10px] tabular-nums text-muted-foreground"
+                    className="pr-0.5 font-mono text-[10px] tabular-nums text-muted-foreground"
                   >
                     {notes.length}
                   </span>
@@ -156,7 +167,7 @@ export const MonthView = ({
                       event.stopPropagation();
                       onOpenDay(day);
                     }}
-                    className="rounded-md px-1.5 py-0.5 text-left text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="rounded-sm px-1 py-0.5 text-left font-mono text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
                     +{hidden} more
                   </button>

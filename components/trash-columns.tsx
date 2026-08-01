@@ -26,7 +26,9 @@ export const columns: ColumnDef<TrashJournals>[] = [
         size="icon"
         onClick={row.getToggleExpandedHandler()}
       >
-        <span>{row.original.notes.length}</span>
+        <span className="font-mono text-xs tabular-nums">
+          {row.original.notes.length}
+        </span>
         {!!row.original.notes.length && (
           <ChevronRight
             className={cn(
@@ -41,6 +43,9 @@ export const columns: ColumnDef<TrashJournals>[] = [
   {
     accessorKey: "title",
     header: "Title",
+    cell: ({ row }) => (
+      <span className="font-serif text-base">{row.original.title}</span>
+    ),
   },
   {
     id: "actions",

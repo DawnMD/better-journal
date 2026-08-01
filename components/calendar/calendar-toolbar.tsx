@@ -67,7 +67,7 @@ export const CalendarToolbar = ({
         <Button
           variant="outline"
           size="sm"
-          className="ml-1"
+          className="ml-1 h-7 font-mono text-[11px] font-normal tracking-[0.08em] uppercase"
           // Disabled only when today is already the selected day, not merely
           // somewhere on screen: from a month grid showing this month, "Today"
           // still has work to do.
@@ -81,16 +81,19 @@ export const CalendarToolbar = ({
       {/* aria-live so a screen reader hears the new range after paging, which is
           otherwise a silent change to a grid it is not focused on. */}
       <h2
-        className="min-w-0 flex-1 truncate text-base font-semibold tracking-tight"
+        className="min-w-0 flex-1 truncate font-serif text-lg tracking-tight"
         aria-live="polite"
       >
         {title}
       </h2>
 
+      {/* A mono segmented control. Month/Week/Day are three fixed states of one
+          setting, so they read as a set of labels rather than three buttons —
+          which is what the shared track and the uniform letterforms say. */}
       <div
         role="group"
         aria-label="Calendar view"
-        className="flex items-center rounded-lg border p-0.5"
+        className="flex items-center rounded-md border border-border/70 p-0.5"
       >
         {CALENDAR_VIEWS.map((option) => (
           <Button
@@ -99,8 +102,10 @@ export const CalendarToolbar = ({
             variant="ghost"
             aria-pressed={option === view}
             className={cn(
-              "px-2.5",
-              option === view && "bg-muted text-foreground",
+              "h-6 px-2.5 font-mono text-[11px] font-normal tracking-[0.08em] uppercase",
+              option === view
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground",
             )}
             onClick={() => onViewChange(option)}
           >

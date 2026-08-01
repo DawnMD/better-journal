@@ -1,4 +1,5 @@
 import { HydrateClient } from "@/components/hydration";
+import { PageContainer } from "@/components/shell/page-container";
 import { TagManager } from "@/components/tags/tag-manager";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
@@ -12,7 +13,9 @@ export default function TagsPage() {
 
   return (
     <HydrateClient client={queryClient}>
-      <TagManager />
+      <PageContainer>
+        <TagManager />
+      </PageContainer>
     </HydrateClient>
   );
 }

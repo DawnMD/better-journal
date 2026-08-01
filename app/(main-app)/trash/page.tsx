@@ -1,4 +1,5 @@
 import { HydrateClient } from "@/components/hydration";
+import { PageContainer } from "@/components/shell/page-container";
 import { TrashedJournalTable } from "@/components/trash-journal-table";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
@@ -12,7 +13,9 @@ export default function TrashPage() {
 
   return (
     <HydrateClient client={queryClient}>
-      <TrashedJournalTable />
+      <PageContainer>
+        <TrashedJournalTable />
+      </PageContainer>
     </HydrateClient>
   );
 }

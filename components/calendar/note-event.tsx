@@ -29,6 +29,14 @@ const MAX_DOTS = 3;
 /**
  * A note on the grid.
  *
+ * A borderless row of text, not a filled pill. `border-primary/20 bg-primary/10`
+ * on every entry was the single loudest thing on the page: it rendered a month of
+ * writing as a wall of Google-Calendar event blocks, which asserts that an entry
+ * is an *appointment* — a thing scheduled at a time, in a slot, next to other
+ * things competing for it. A journal entry is none of that. Set as a line of
+ * serif with its tag dots leading and a fill only under the pointer, a month cell
+ * reads as a short list of what was written that day, which is what it is.
+ *
  * The whole chip is a link, with the actions menu overlaid rather than nested —
  * a `<button>` inside an `<a>` is invalid HTML and, more practically, makes the
  * menu impossible to click without also navigating. The menu is transparent
@@ -71,61 +79,70 @@ export const NoteEvent = ({
       <Link
         href={`/journal/${journalId}/${note.id}`}
         className={cn(
-          "flex h-full w-full items-baseline gap-1.5 overflow-hidden rounded-md",
-          "border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-left text-xs",
-          "hover:bg-primary/20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+          "flex h-full w-full items-baseline gap-1.5 overflow-hidden rounded-sm",
+          "px-1 py-0.5 text-left text-xs",
+          "hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
           // Room for the menu, so a long title does not run underneath it.
           "pr-6",
         )}
       >
         {showTime && (
-          <span className="shrink-0 tabular-nums text-[10px] text-muted-foreground">
+          <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
             {formatMinutes(note.minutes)}
           </span>
         )}
-        <span className="truncate font-medium">{title}</span>
-
         {/* Inside the link, so the whole chip stays one target, and
             `pointer-events-none` so a tag can never swallow the click that was
             meant to open the note. The tags themselves are not interactive
-            here — filtering lives in the bar above the grid. */}
-        {hasTags &&
-          (tagStyle === "chips" ? (
-            <span className="pointer-events-none ml-auto flex shrink-0 items-center gap-1">
-              {note.tags.slice(0, MAX_CHIPS).map((tag) => (
-                <TagChip key={tag.id} name={tag.name} size="sm" />
-              ))}
-              {hiddenChips > 0 && (
-                <span className="text-[10px] text-muted-foreground tabular-nums">
-                  +{hiddenChips}
-                </span>
-              )}
-            </span>
-          ) : (
-            <span
-              className="pointer-events-none ml-auto flex shrink-0 items-center gap-0.5"
-              // The dot row is `shrink-0`, so an uncapped one would take width
-              // from the title without limit. Capped, the overflow still has to
-              // stay reachable — hence the full list here.
-              title={
-                hiddenDots > 0
-                  ? note.tags.map((tag) => tag.name).join(", ")
-                  : undefined
-              }
-            >
-              {note.tags.slice(0, MAX_DOTS).map((tag) => (
-                <TagDot key={tag.id} name={tag.name} />
-              ))}
-              {hiddenDots > 0 && (
-                <span
-                  aria-label={`${hiddenDots} more`}
-                  className="text-[9px] leading-none text-muted-foreground tabular-nums"
-                >
-                  +{hiddenDots}
-                </span>
-              )}
-            </span>
-          ))}
+            here — filtering lives in the bar above the grid.
+
+            Dots lead, named chips trail. Without a pill around the row there is
+            no longer a left edge for the title to start from, so the dots become
+            that edge — a colour bullet the eye can run down the cell. Chips are
+            wide enough to be their own block and stay pinned right, where they
+            do not push the title's first letter off the column. */}
+        {hasTags && tagStyle === "dots" && (
+          <span
+            className="pointer-events-none flex shrink-0 items-center gap-0.5 self-center"
+            // The dot row is `shrink-0`, so an uncapped one would take width
+            // from the title without limit. Capped, the overflow still has to
+            // stay reachable — hence the full list here.
+            title={
+              hiddenDots > 0
+                ? note.tags.map((tag) => tag.name).join(", ")
+                : undefined
+            }
+          >
+            {note.tags.slice(0, MAX_DOTS).map((tag) => (
+              <TagDot key={tag.id} name={tag.name} />
+            ))}
+            {hiddenDots > 0 && (
+              <span
+                aria-label={`${hiddenDots} more`}
+                className="text-[9px] leading-none text-muted-foreground tabular-nums"
+              >
+                +{hiddenDots}
+              </span>
+            )}
+          </span>
+        )}
+
+        <span className="truncate font-serif text-[13px] leading-tight">
+          {title}
+        </span>
+
+        {hasTags && tagStyle === "chips" && (
+          <span className="pointer-events-none ml-auto flex shrink-0 items-center gap-1">
+            {note.tags.slice(0, MAX_CHIPS).map((tag) => (
+              <TagChip key={tag.id} name={tag.name} size="sm" />
+            ))}
+            {hiddenChips > 0 && (
+              <span className="text-[10px] text-muted-foreground tabular-nums">
+                +{hiddenChips}
+              </span>
+            )}
+          </span>
+        )}
       </Link>
 
       <NoteRowActions

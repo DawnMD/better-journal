@@ -1,6 +1,6 @@
 "use client";
 
-import { NotFoundView } from "@/components/not-found-view";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, HomeIcon } from "lucide-react";
 import Link from "next/link";
@@ -19,8 +19,9 @@ export default function NoteNotFound() {
   const params = useParams<{ journalId?: string }>();
 
   return (
-    <NotFoundView
+    <EmptyState
       className="min-h-[50vh]"
+      eyebrow="404"
       title="This note doesn't exist"
       description="It may have been deleted, or the link may point at a note that lives in a different journal."
       actions={

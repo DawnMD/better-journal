@@ -1,5 +1,6 @@
 import { HydrateClient } from "@/components/hydration";
 import { JournalData } from "@/components/journal-data";
+import { PageContainer } from "@/components/shell/page-container";
 import { rangeKeys, resolveDayKey, resolveView } from "@/lib/calendar";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
@@ -78,7 +79,9 @@ export default async function JournalIdPage({
 
   return (
     <HydrateClient client={queryClient}>
-      <JournalData id={journalId} serverToday={today} />
+      <PageContainer width="wide">
+        <JournalData id={journalId} serverToday={today} />
+      </PageContainer>
     </HydrateClient>
   );
 }

@@ -79,6 +79,27 @@ const editorVariants = cva(
         default: "size-full p-4 text-base sm:px-[max(64px,calc(50%-350px))]",
         demo: "size-full px-16 pt-4 pb-72 text-base sm:px-[max(64px,calc(50%-350px))]",
         fullWidth: "size-full px-16 pt-4 pb-72 text-base sm:px-24",
+        /**
+         * The journal's own writing surface.
+         *
+         * No horizontal padding, unlike `default`, whose
+         * `px-[max(64px,calc(50%-350px))]` exists to centre a ~700px measure
+         * inside a full-bleed page. That measure is now the page — PageContainer
+         * sets it to 68ch and supplies the gutters — so repeating it here would
+         * indent a column that is already a column.
+         *
+         * Serif at 18px/1.75. Bigger and looser than the app's UI text on
+         * purpose: this is the only text in the product meant to be read for
+         * minutes at a time rather than scanned, and it is the same face the
+         * title above it is set in, so an entry reads as one piece of writing.
+         *
+         * The long bottom padding keeps the last line clear of the viewport
+         * floor, so you are never typing against the bottom edge of the window.
+         */
+        journal: cn(
+          "size-full pt-4 pb-64 font-serif text-[18px] leading-[1.75]",
+          "**:data-slate-placeholder:!top-0 **:data-slate-placeholder:translate-y-0",
+        ),
         none: "",
         select: "px-3 py-2 text-base data-readonly:w-fit",
       },

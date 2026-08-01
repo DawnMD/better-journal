@@ -54,9 +54,9 @@ export const SearchPalette = () => {
       }
     };
 
-    // A window event rather than lifted state or a context: the sidebar button
-    // lives in a different subtree, and one event listener is less machinery than
-    // a provider threaded through the layout for a single boolean.
+    // A window event rather than lifted state or a context: the top bar's search
+    // button lives in a different subtree, and one event listener is less
+    // machinery than a provider threaded through the layout for a single boolean.
     const onOpenRequest = () => setOpen(true);
 
     document.addEventListener("keydown", onKeyDown);
@@ -184,7 +184,7 @@ export const SearchPalette = () => {
 
         <CommandList>
           {!isAsking && (
-            <div className="py-6 text-center text-sm text-muted-foreground">
+            <div className="py-8 text-center font-serif text-sm text-muted-foreground">
               Type to search, or pick a tag.
             </div>
           )}
@@ -213,7 +213,7 @@ export const SearchPalette = () => {
               screen the message would be swallowed exactly when a tag filter
               has matched nothing — the case most in need of an explanation. */}
           {showEmpty && (
-            <div className="py-6 text-center text-sm">
+            <div className="py-8 text-center font-serif text-sm">
               {hasTags && debouncedQuery.length === 0
                 ? "No notes with those tags."
                 : "No notes found."}
@@ -235,11 +235,11 @@ export const SearchPalette = () => {
                 >
                   <div className="flex w-full items-center gap-2">
                     <FileTextIcon className="size-4 shrink-0 opacity-60" />
-                    <span className="truncate font-medium">
+                    <span className="truncate font-serif text-[15px]">
                       {result.title || "Untitled note"}
                     </span>
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                      {format(result.createdAt, "MMM d, yyyy")}
+                    <span className="ml-auto shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
+                      {format(result.createdAt, "d MMM yyyy")}
                     </span>
                   </div>
                   <Snippet
@@ -274,7 +274,9 @@ export const SearchPalette = () => {
 function Snippet({ snippet, journal }: { snippet: string; journal: string }) {
   if (!snippet) {
     return (
-      <span className="pl-6 text-xs text-muted-foreground">{journal}</span>
+      <span className="pl-6 font-mono text-[11px] text-muted-foreground">
+        {journal}
+      </span>
     );
   }
 
@@ -282,7 +284,9 @@ function Snippet({ snippet, journal }: { snippet: string; journal: string }) {
   const pieces = snippet.split(HL_SPLIT);
 
   return (
-    <span className="pl-6 text-xs text-muted-foreground">
+    // Mono, so the snippet reads as an *extract* — a fragment lifted out of a
+    // note — rather than as the note's own prose set small.
+    <span className="pl-6 font-mono text-[11px] leading-relaxed text-muted-foreground">
       <span className="mr-2 opacity-70">{journal}</span>
       {pieces.map((piece, index) =>
         index % 2 === 1 ? (

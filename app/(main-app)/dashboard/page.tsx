@@ -2,6 +2,7 @@ import { ActivityHeatmap } from "@/components/dashboard/activity-heatmap";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { WordsChart } from "@/components/dashboard/words-chart";
 import { HydrateClient } from "@/components/hydration";
+import { PageContainer } from "@/components/shell/page-container";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
@@ -33,37 +34,38 @@ export default async function DashboardPage() {
 
   return (
     <HydrateClient client={queryClient}>
+      <PageContainer>
+        <div className="flex flex-col gap-8">
+          <div className="space-y-1">
+            {/* "Dashboard" is what the template called it. This page is a year of
+                someone's writing looked at from above, and the subtitle already
+                says what it measures — so the heading can name the thing rather
+                than the widget it is made of. */}
+            <h1 className="font-serif text-3xl tracking-tight">
+              Your year so far
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              How your writing habit is going.
+            </p>
+          </div>
 
-      <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            How your writing habit is going.
-          </p>
+          <Suspense fallback={<TilesSkeleton />}>
+            <StatTiles />
+          </Suspense>
+
+          <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
+            <ActivityHeatmap />
+          </Suspense>
+
+          <Suspense fallback={<Skeleton className="h-80 w-full rounded-lg" />}>
+            <WordsChart />
+          </Suspense>
         </div>
-
-        <Suspense fallback={<TilesSkeleton />}>
-          <StatTiles />
-        </Suspense>
-
-        <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
-          <ActivityHeatmap />
-        </Suspense>
-
-        <Suspense fallback={<Skeleton className="h-80 w-full rounded-xl" />}>
-          <WordsChart />
-        </Suspense>
-      </div>
+      </PageContainer>
     </HydrateClient>
   );
 }
 
 function TilesSkeleton() {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <Skeleton key={index} className="h-28 rounded-xl" />
-      ))}
-    </div>
-  );
+  return <Skeleton className="h-28 w-full rounded-lg" />;
 }

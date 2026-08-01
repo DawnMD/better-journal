@@ -26,12 +26,15 @@ export default function MainAppError({
   }, [error]);
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-5 p-8 text-center">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">
+        <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
+          Error
+        </p>
+        <h2 className="font-serif text-2xl tracking-tight">
           Something went wrong
         </h2>
-        <p className="max-w-md text-sm text-muted-foreground">
+        <p className="max-w-md text-sm text-pretty text-muted-foreground">
           We couldn&apos;t load this page. Your entries are safe — this is a
           problem reaching the server, not with your data.
         </p>

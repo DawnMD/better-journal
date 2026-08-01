@@ -1,3 +1,4 @@
+import { PageContainer } from "@/components/shell/page-container";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -12,39 +13,41 @@ import { MoreHorizontalIcon } from "lucide-react";
 
 export default function Loading() {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <Skeleton className="h-7 w-24" />
-        <Skeleton className="h-4 w-80" />
-      </div>
+    <PageContainer>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-9 w-28" />
+          <Skeleton className="h-4 w-80" />
+        </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tag</TableHead>
-            <TableHead>Notes</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 8 }).map((_, index) => (
-            <TableRow key={index}>
-              <TableCell>
-                <Skeleton className="h-6 w-28" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-6 w-8" />
-              </TableCell>
-              <TableCell>
-                <Button variant="ghost" size="icon" className="size-8">
-                  <MoreHorizontalIcon />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </TableCell>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tag</TableHead>
+              <TableHead>Notes</TableHead>
+              <TableHead />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 8 }).map((_, index) => (
+              <TableRow key={index}>
+                <TableCell>
+                  <Skeleton className="h-6 w-28 rounded-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-6 w-8" />
+                </TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="icon" className="size-8">
+                    <MoreHorizontalIcon />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </PageContainer>
   );
 }

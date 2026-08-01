@@ -98,7 +98,10 @@ export const NoteTags = ({ noteId }: { noteId: string }) => {
     !(allTags ?? []).some((tag) => tag.name === normalized);
 
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+    // Sits directly under the title with real space beneath it, rather than in a
+    // bordered strip of its own: tags belong to the entry, so they read as part
+    // of its heading block instead of as a control panel bolted above the text.
+    <div className="mb-6 flex flex-wrap items-center gap-1.5">
       {tags?.map((tag) => (
         <TagChip
           key={tag.id}

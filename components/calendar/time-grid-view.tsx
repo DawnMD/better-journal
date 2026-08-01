@@ -83,16 +83,16 @@ export const TimeGridView = ({
   return (
     <div
       ref={scrollRef}
-      className="max-h-[65vh] overflow-auto rounded-lg border"
+      className="max-h-[65vh] overflow-auto rounded-lg border border-border/60"
     >
       <div style={{ minWidth: days.length > 1 ? MIN_WEEK_WIDTH : undefined }}>
         {/* Sticky so the dates stay put while the time axis scrolls under them.
             Opaque, not translucent — the notes would otherwise show through. */}
         <div
-          className="sticky top-0 z-20 grid border-b bg-background"
+          className="sticky top-0 z-20 grid border-b border-border/60 bg-background"
           style={{ gridTemplateColumns: columns }}
         >
-          <div className="border-r" />
+          <div className="border-r border-border/60" />
           {days.map((day) => {
             const key = format(day, DAY_KEY);
             const isToday = key === todayKey;
@@ -103,19 +103,19 @@ export const TimeGridView = ({
                 type="button"
                 onClick={() => onSelectDay(day)}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 border-l px-1 py-1.5 transition-colors",
+                  "flex flex-col items-center gap-0.5 border-l border-border/60 px-1 py-1.5 transition-colors",
                   "hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                  key === selectedKey && "bg-accent/60",
+                  key === selectedKey && "bg-accent/70",
                 )}
               >
-                <span className="text-[11px] text-muted-foreground">
+                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
                   {format(day, "EEE")}
                 </span>
                 <span
                   className={cn(
-                    "flex size-6 items-center justify-center rounded-full text-xs tabular-nums",
-                    isToday &&
-                      "bg-primary font-semibold text-primary-foreground",
+                    "flex size-6 items-center justify-center rounded-full font-mono text-[11px] tabular-nums",
+                    // Same clay ring the month grid marks today with.
+                    isToday && "text-brand ring-1 ring-brand",
                   )}
                 >
                   {format(day, "d")}
@@ -128,11 +128,14 @@ export const TimeGridView = ({
         <div className="grid" style={{ gridTemplateColumns: columns }}>
           {/* Hour gutter. Labels sit *on* their line rather than inside the
               band below it, so a note at 09:05 reads as just after "9 AM". */}
-          <div className="relative border-r" style={{ height: DAY_PX }}>
+          <div
+            className="relative border-r border-border/60"
+            style={{ height: DAY_PX }}
+          >
             {HOURS.map((hour) => (
               <span
                 key={hour}
-                className="absolute right-1.5 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground"
+                className="absolute right-1.5 -translate-y-1/2 font-mono text-[10px] tabular-nums text-muted-foreground"
                 style={{ top: hour * HOUR_PX }}
               >
                 {/* Midnight's label would be clipped by the grid's own top edge,
@@ -150,13 +153,18 @@ export const TimeGridView = ({
             return (
               <div
                 key={key}
-                className="relative border-l"
+                className="relative border-l border-border/60"
                 style={{
                   height: DAY_PX,
                   // Drawn as a gradient rather than 24 elements per column: the
                   // rules are decoration, and a week view would otherwise add
                   // 168 nodes that exist only to be a 1px line.
-                  backgroundImage: `repeating-linear-gradient(to bottom, var(--color-border) 0, var(--color-border) 1px, transparent 1px, transparent ${HOUR_PX}px)`,
+                  //
+                  // Mixed down rather than using --color-border straight: 24 of
+                  // these per column is the densest ruling anywhere in the app,
+                  // and at full border weight the grid competes with the entries
+                  // sitting on it.
+                  backgroundImage: `repeating-linear-gradient(to bottom, color-mix(in oklab, var(--color-border) 55%, transparent) 0, color-mix(in oklab, var(--color-border) 55%, transparent) 1px, transparent 1px, transparent ${HOUR_PX}px)`,
                 }}
               >
                 {placed.map(({ event, column, columns: lanes }) => (
@@ -188,10 +196,13 @@ export const TimeGridView = ({
                 {showNow && (
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-x-0 z-10 border-t border-destructive"
+                    // Clay, not destructive-red. "Now" is a position on a grid,
+                    // not a failure, and it was borrowing the one colour the app
+                    // reserves for things going wrong.
+                    className="pointer-events-none absolute inset-x-0 z-10 border-t border-brand"
                     style={{ top: (nowMinutes / 60) * HOUR_PX }}
                   >
-                    <span className="absolute -top-1 -left-1 size-2 rounded-full bg-destructive" />
+                    <span className="absolute -top-1 -left-1 size-2 rounded-full bg-brand" />
                   </div>
                 )}
               </div>

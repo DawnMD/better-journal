@@ -1,4 +1,4 @@
-import { NotFoundView } from "@/components/not-found-view";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { HomeIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
@@ -9,12 +9,13 @@ import Link from "next/link";
  * answer all three the same way on purpose (see server/lib/authorize.ts), so
  * this page cannot say which, and should not try.
  *
- * Nested under (main-app) so the sidebar, breadcrumb and ⌘K palette stay
- * mounted: a dead link should cost you the pane, not the app.
+ * Nested under (main-app) so the top bar and the ⌘K palette stay mounted: a dead
+ * link should cost you the pane, not the app.
  */
 export default function MainAppNotFound() {
   return (
-    <NotFoundView
+    <EmptyState
+      eyebrow="404"
       title="We couldn't find that"
       description="This journal may have been deleted or moved to trash, or the link may be wrong. Your other entries are unaffected."
       actions={

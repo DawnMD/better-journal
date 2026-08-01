@@ -1,5 +1,6 @@
 import { HydrateClient } from "@/components/hydration";
 import { NoteEditor } from "@/components/note-editor";
+import { PageContainer } from "@/components/shell/page-container";
 import { isNotFoundError } from "@/lib/orpc.errors";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
@@ -47,7 +48,7 @@ export default async function NotePage({
 
   // The URL names both the journal and the note, so a real note reached through
   // the wrong journal id is still a wrong address. Without this the note would
-  // render under a journal it does not belong to, with a breadcrumb naming that
+  // render under a journal it does not belong to, with the top bar naming that
   // other journal and a "back" link that leads somewhere it was never listed.
   if (note.journalId !== journalId) notFound();
 
@@ -57,7 +58,9 @@ export default async function NotePage({
 
   return (
     <HydrateClient client={queryClient}>
-      <NoteEditor noteId={noteId} />
+      <PageContainer width="prose">
+        <NoteEditor noteId={noteId} />
+      </PageContainer>
     </HydrateClient>
   );
 }

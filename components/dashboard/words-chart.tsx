@@ -110,7 +110,10 @@ export const WordsChart = () => {
               variant="ghost"
               size="sm"
               aria-pressed={range === option}
-              className={cn(range === option && "bg-muted")}
+              className={cn(
+                "font-mono text-[11px] font-normal tracking-wide",
+                range === option ? "bg-muted text-foreground" : "text-muted-foreground",
+              )}
               onClick={() => setRange(option)}
             >
               {RANGE_LABELS[option]}
@@ -251,15 +254,15 @@ function WordsTable({
     <div className="max-h-72 overflow-y-auto">
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-card">
-          <tr className="border-b text-left text-xs text-muted-foreground">
-            <th className="py-2 font-medium">{isMonthly ? "Month" : "Day"}</th>
-            <th className="py-2 text-right font-medium">Entries</th>
-            <th className="py-2 text-right font-medium">Words</th>
+          <tr className="border-b border-border/70 text-left font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+            <th className="py-2 font-normal">{isMonthly ? "Month" : "Day"}</th>
+            <th className="py-2 text-right font-normal">Entries</th>
+            <th className="py-2 text-right font-normal">Words</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.bucket} className="border-b last:border-0">
+            <tr key={row.bucket} className="border-b border-border/50 last:border-0">
               <td className="py-1.5">{formatBucket(row.bucket, isMonthly)}</td>
               <td className="py-1.5 text-right tabular-nums">{row.notes}</td>
               <td className="py-1.5 text-right tabular-nums">

@@ -8,7 +8,7 @@ import { useEffect } from "react";
  * Scoped boundary for a journal.
  *
  * Nested under the journal route on purpose: a journal that will not load
- * degrades to this panel while the sidebar and the signed-in shell stay mounted,
+ * degrades to this panel while the top bar and the signed-in shell stay mounted,
  * instead of escaping to `(main-app)/error.tsx` and blanking the whole app.
  *
  * A journal id that does not resolve is a 404 decided on the server, so what
@@ -27,12 +27,15 @@ export default function JournalError({
   }, [error]);
 
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
+    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-5 p-8 text-center">
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight">
+        <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
+          Error
+        </p>
+        <h2 className="font-serif text-2xl tracking-tight">
           This journal couldn&apos;t be opened
         </h2>
-        <p className="max-w-md text-sm text-muted-foreground">
+        <p className="max-w-md text-sm text-pretty text-muted-foreground">
           Your entries are safe — this is a problem reaching the server, not
           with your data.
         </p>

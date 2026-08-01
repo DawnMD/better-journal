@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/empty-state";
 import { columns } from "@/components/trash-columns";
 import {
   Table,
@@ -45,89 +46,111 @@ export const TrashedJournalTable = () => {
   // error.tsx boundary rather than reported through this hook's return value.
 
   return (
-    <Table>
-      <TableHeader>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => {
-              return (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </TableHead>
-              );
-            })}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows.length ? (
-          table.getRowModel().rows.map((row) => (
-            <Fragment key={row.id}>
-              <TableRow data-state={row.getIsSelected() && "selected"}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
+    <div className="flex flex-col gap-6">
+      {/* The page had no heading of its own — it opened straight onto a bare
+          table, which only reads as "Trash" if you remember clicking Trash. */}
+      <div className="flex flex-col gap-1">
+        <h1 className="font-serif text-3xl tracking-tight">Trash</h1>
+        <p className="text-sm text-muted-foreground">
+          Journals you removed, and everything that was written in them. Restore
+          one and its entries come back with it.
+        </p>
+      </div>
 
-              {row.getIsExpanded() && (
-                <TableRow>
-                  <TableCell colSpan={row.getVisibleCells().length}>
-                    <div className="p-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Updated</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {row.original.notes.length === 0 ? (
-                            <TableRow>
-                              <TableCell
-                                colSpan={2}
-                                className="text-muted-foreground"
-                              >
-                                No notes.
-                              </TableCell>
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                return (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length ? (
+            table.getRowModel().rows.map((row) => (
+              <Fragment key={row.id}>
+                <TableRow data-state={row.getIsSelected() && "selected"}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+
+                {row.getIsExpanded() && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={row.getVisibleCells().length}>
+                      {/* Inset and tinted, so a journal's notes read as being
+                          *inside* it rather than as more rows of the same list. */}
+                      <div className="rounded-md bg-muted/40 p-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                              <TableHead>Title</TableHead>
+                              <TableHead>Updated</TableHead>
                             </TableRow>
-                          ) : (
-                            row.original.notes.map((note) => (
-                              <TableRow key={note.id}>
-                                <TableCell className="font-medium">
-                                  {note.title}
-                                </TableCell>
-                                <TableCell>
-                                  {format(
-                                    note.updatedAt,
-                                    "MMMM do, yyyy 'at' h:mm a",
-                                  )}
+                          </TableHeader>
+                          <TableBody>
+                            {row.original.notes.length === 0 ? (
+                              <TableRow>
+                                <TableCell
+                                  colSpan={2}
+                                  className="text-muted-foreground"
+                                >
+                                  No notes.
                                 </TableCell>
                               </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </Fragment>
-          ))
-        ) : (
-          <TableRow>
-            <TableCell colSpan={columns.length} className="h-24 text-center">
-              No Journals.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+                            ) : (
+                              row.original.notes.map((note) => (
+                                <TableRow key={note.id}>
+                                  <TableCell className="font-serif">
+                                    {note.title}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs text-muted-foreground">
+                                    {format(
+                                      note.updatedAt,
+                                      "d MMM yyyy 'at' h:mm a",
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
+            ))
+          ) : (
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={columns.length} className="p-0">
+                <EmptyState
+                  size="inline"
+                  eyebrow="Empty"
+                  title="Nothing in the trash"
+                  description="Journals you move to trash wait here until you delete them for good."
+                />
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 };

@@ -6,6 +6,7 @@ import type { CalendarNote } from "@/components/calendar/note-event";
 import { TagFilterBar } from "@/components/calendar/tag-filter-bar";
 import { TimeGridView } from "@/components/calendar/time-grid-view";
 import { useNowMinutes, useToday } from "@/components/calendar/use-today";
+import { EmptyState } from "@/components/empty-state";
 import {
   DAY_KEY,
   rangeKeys,
@@ -232,11 +233,15 @@ export const JournalCalendar = ({
       )}
 
       {visibleNotes.length === 0 && (
-        <p className="mt-3 text-center text-sm text-muted-foreground">
-          {activeTagIds.length > 0
-            ? EMPTY_FILTERED_MESSAGE[view]
-            : EMPTY_MESSAGE[view]}
-        </p>
+        <EmptyState
+          size="inline"
+          eyebrow={activeTagIds.length > 0 ? "No matches" : "Empty"}
+          title={
+            activeTagIds.length > 0
+              ? EMPTY_FILTERED_MESSAGE[view]
+              : EMPTY_MESSAGE[view]
+          }
+        />
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/DawnMD/better-journal/actions/workflows/ci.yml/badge.svg)](https://github.com/DawnMD/better-journal/actions/workflows/ci.yml)
 
-A private journaling app built around the question *"what did I actually write this year?"* — a rich-text editor with autosave, full-text search across every entry, password-protected journals, and a dashboard that turns a year of writing into streaks, a contribution heatmap, and word counts.
+A private journaling app built around the question *"what did I actually write this year?"* — a rich-text editor with autosave, full-text search across every entry, a month/week/day calendar of what you wrote when, and a dashboard that turns a year of writing into streaks, a contribution heatmap, and word counts.
 
 > **Screenshot:** run `pnpm db:seed -- --user <your-clerk-id>` then `pnpm dev` and capture `/dashboard`. Save it to `docs/dashboard.png` and reference it here — the seeded dataset spans two years, so the heatmap and charts have real shape.
 
@@ -16,7 +16,8 @@ A private journaling app built around the question *"what did I actually write t
 | **Plate** over a textarea | Journals want headings, quotes and emphasis. Plate stores a structured document rather than a string, which is what makes Markdown export lossless and lets the search layer extract clean plain text instead of stripping HTML. |
 | **Clerk** over rolling auth | Session handling, MFA and account recovery are a large surface to get subtly wrong, and none of it is what makes this app interesting. The app never sees a password. |
 | **Postgres full-text search** over a search service | A generated `tsvector` column with a GIN index gives stemming, ranking and highlighted snippets with no second datastore to run, sync, or pay for. Reaching for Elasticsearch at this scale would be infrastructure cosplay. |
-| **Hand-rolled SVG charts** over Recharts | The dashboard is one line path, an area wash, and a hover layer. A charting library would be more dependency than drawing, and hand-rolling keeps the marks exactly to spec. |
+| **Recharts** for the words chart, hand-rolled SVG for the heatmap | The area chart wants an axis, tick thinning and a hover layer — all solved problems. The contribution heatmap wants none of them: it is 365 rects on a fixed grid, and a charting library has no form for that. Recharts' defaults are heavier than the spec, so the marks are still set by hand — 2px line, hairline grid, ~10% wash. |
+| **A top bar** over a sidebar | Five destinations, ⌘K mounted globally, and one to five journals per person — a *switcher*, not a tree. The browse surface that matters is the calendar, and the editor is the screen this app exists for: it should not pay 256px permanently for navigation it never uses. |
 
 Also: Next.js 16 (App Router, React Compiler), Prisma 7, TanStack Query, Tailwind v4, shadcn/ui on Base UI.
 
@@ -86,7 +87,7 @@ const journal = await queryClient.fetchQuery(/* getJournalById */);
 if (!journal) notFound();
 ```
 
-Three boundaries, because context is what makes a 404 useful: the root one for unmatched URLs, `(main-app)/not-found.tsx` inside the shell so the sidebar and ⌘K survive a dead journal link, and one scoped to `[noteId]` that offers the way back to its journal. The note page also 404s when the note is real but the journal id in the URL isn't its own — otherwise the note renders under a journal it never belonged to.
+Three boundaries, because context is what makes a 404 useful: the root one for unmatched URLs, `(main-app)/not-found.tsx` inside the shell so the top bar and ⌘K survive a dead journal link, and one scoped to `[noteId]` that offers the way back to its journal. The note page also 404s when the note is real but the journal id in the URL isn't its own — otherwise the note renders under a journal it never belonged to.
 
 The error boundaries keep what's left: a locked journal, an unreachable database. Failures worth a "try again", which a deleted note never is. And 4xx answers are excluded from React Query's retries — three retries with backoff would leave a 404 spinning for seconds before the page could declare it.
 

@@ -16,6 +16,16 @@ import { XIcon } from "lucide-react";
  * The name is always rendered. Colour is a recognition aid, never the only way
  * to tell two tags apart — that would fail for the ~8% of readers with a colour
  * vision deficiency, and for anyone reading a greyscale screenshot.
+ *
+ * A full pill rather than the app's `--radius`. Everything else got squarer in the
+ * paper repaint; tags went the other way on purpose, because a chip is the one
+ * element here that is genuinely an object you attach and detach rather than a
+ * region of the page — and the shape is what says so at a glance in a dense month
+ * cell. The border weight came down to match the lighter grid around it.
+ *
+ * The eight hues in lib/tag-color.ts are untouched: tests/lib/tag-color.test.ts
+ * pins the hue indices and the exact class-string shape, so restyling belongs
+ * here, in the chip, not in the palette.
  */
 export const TagChip = ({
   name,
@@ -34,8 +44,8 @@ export const TagChip = ({
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-md border font-medium",
-        size === "sm" ? "px-1 py-0 text-[10px]" : "px-1.5 py-0.5 text-xs",
+        "inline-flex max-w-full items-center gap-1 rounded-full border-[0.5px] font-medium",
+        size === "sm" ? "px-1.5 py-0 text-[10px]" : "px-2 py-0.5 text-xs",
         tagColorClasses(name),
         className,
       )}

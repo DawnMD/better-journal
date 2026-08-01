@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/empty-state";
 import { TagChip } from "@/components/tags/tag-chip";
 import { TagRowActions } from "@/components/tags/tag-row-actions";
 import {
@@ -29,11 +30,11 @@ export const TagManager = () => {
   // route's error boundary rather than reported through this hook.
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="flex items-center gap-2 text-xl font-semibold">
+        <h1 className="flex items-baseline gap-2.5 font-serif text-3xl tracking-tight">
           Tags
-          <span className="text-sm font-normal text-muted-foreground tabular-nums">
+          <span className="font-mono text-sm text-muted-foreground tabular-nums">
             {tags.length}
           </span>
         </h1>
@@ -52,9 +53,14 @@ export const TagManager = () => {
         </TableHeader>
         <TableBody>
           {tags.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={3} className="h-24 text-center">
-                No tags yet. Add one from any note.
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={3} className="p-0">
+                <EmptyState
+                  size="inline"
+                  eyebrow="Empty"
+                  title="No tags yet"
+                  description="Tags are created from a note — type one into the tag field while you write and it exists from then on."
+                />
               </TableCell>
             </TableRow>
           ) : (
@@ -67,7 +73,9 @@ export const TagManager = () => {
                 <TableCell>
                   <TagChip name={tag.name} />
                 </TableCell>
-                <TableCell className="tabular-nums">{tag.noteCount}</TableCell>
+                <TableCell className="font-mono text-xs tabular-nums text-muted-foreground">
+                  {tag.noteCount}
+                </TableCell>
                 <TableCell className="w-0">
                   <TagRowActions
                     tagId={tag.id}

@@ -10,7 +10,7 @@ import { useEffect } from "react";
  * Scoped boundary for a single note.
  *
  * Nested under the journal route on purpose: a note that will not load degrades
- * to this panel while the sidebar and journal shell stay usable, instead of
+ * to this panel while the top bar and journal shell stay usable, instead of
  * blanking the app.
  *
  * This is failures only. A note id that does not resolve — a stale bookmark, a
@@ -33,12 +33,15 @@ export default function NoteError({
   }, [error]);
 
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
+    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-5 p-8 text-center">
       <div className="space-y-2">
-        <h2 className="text-lg font-semibold tracking-tight">
+        <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
+          Error
+        </p>
+        <h2 className="font-serif text-2xl tracking-tight">
           This note couldn&apos;t be opened
         </h2>
-        <p className="max-w-md text-sm text-muted-foreground">
+        <p className="max-w-md text-sm text-pretty text-muted-foreground">
           The note is still there — this is a problem reaching it.
         </p>
       </div>

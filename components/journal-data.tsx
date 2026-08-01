@@ -28,13 +28,13 @@ export const JournalData = ({
 
   return (
     <div>
-      <header className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-serif text-3xl tracking-tight">
             {journal.title}
           </h1>
           {journal.description && (
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1.5 text-sm text-muted-foreground text-pretty">
               {journal.description}
             </p>
           )}
