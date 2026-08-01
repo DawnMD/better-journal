@@ -40,8 +40,8 @@ export default async function NotePage({
   } catch (error) {
     if (isNotFoundError(error)) notFound();
 
-    // Anything else — a locked journal, an unreachable database — is a genuine
-    // error and belongs to [noteId]/error.tsx.
+    // Anything else — an unreachable database, a serialization failure — is a
+    // genuine error and belongs to [noteId]/error.tsx.
     throw error;
   }
 

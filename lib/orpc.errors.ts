@@ -28,8 +28,8 @@ export function isConflictError(error: unknown): boolean {
 
 /**
  * True for any ORPC error in the 4xx range — a settled answer about *this*
- * request (missing, locked, rate-limited, malformed), not a transient failure
- * that a second attempt could resolve.
+ * request (missing, rate-limited, malformed), not a transient failure that a
+ * second attempt could resolve.
  */
 export function isRequestError(error: unknown): boolean {
   return error instanceof ORPCError && error.status >= 400 && error.status < 500;

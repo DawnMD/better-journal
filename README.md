@@ -32,7 +32,7 @@ Also: Next.js 16 (App Router, React Compiler), Prisma 7, TanStack Query, Tailwin
 server/router/  ──►  AppRouter (type only)  ──►  lib/orpc.query.ts  ──►  components
      │                                                  │
      └── protectedProcedure ── assertJournalOwned        └── TanStack Query keys,
-         (auth + ownership + unlock, one place)              prefetched server-side
+         (auth + ownership, one place)                       prefetched server-side
 ```
 
 Server components prefetch into a `QueryClient` and dehydrate it, so the first paint has data and the client's `useSuspenseQuery` reads from cache instead of refetching.
@@ -50,20 +50,6 @@ if (count === 0) throw new ORPCError("NOT_FOUND");
 ```
 
 One round trip, and no window in which the journal could change hands between the check and the write. Someone else's resource returns `NOT_FOUND` rather than `FORBIDDEN`, so ids can't be enumerated by probing which ones come back 403.
-
-### Password-protected journals
-
-The part worth doing properly. A client-side `unlocked` boolean would be theatre — the RPC endpoints are directly callable, so anyone could skip the dialog.
-
-Instead, verifying the password mints a short-lived HMAC token scoped to **one journal and one user**, stored in an HttpOnly cookie:
-
-```
-journalId.userId.expiresAt.signature
-```
-
-The expiry is *inside* the signed payload, so editing the cookie to extend it invalidates the signature. `assertUnlocked` re-checks on every request, and it takes the password hash as an argument so callers that are already reading the row check the lock without a second query.
-
-The subtle part: `saveNote`, `renameNote`, `deleteNote` and `getNoteById` reach a note by its own id and never mention the journal, so their scoped writes originally sailed straight past the lock. Closing that is what makes the feature real, and there's a test for each path.
 
 ### Timezones
 

@@ -2,7 +2,7 @@
  * Search highlight delimiters, shared by the server query and the client renderer.
  *
  * Lives in `lib/` rather than beside the router so the client can import it without
- * pulling the server router — and with it Prisma and argon2 — into the browser
+ * pulling the server router — and with it Prisma — into the browser
  * bundle.
  *
  * They are ASCII STX/ETX rather than `<mark>` because `ts_headline` does **not**

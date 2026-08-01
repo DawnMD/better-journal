@@ -16,8 +16,8 @@ import { useEffect } from "react";
  * This is failures only. A note id that does not resolve — a stale bookmark, a
  * deleted entry, someone else's id — is a 404 and is caught by the not-found
  * boundary beside this file, so "try again" is never offered for a note that is
- * simply gone. What lands here is a locked journal or an unreachable server:
- * both worth retrying.
+ * simply gone. What lands here is an unreachable server or a genuine fault —
+ * worth retrying.
  */
 export default function NoteError({
   error,
@@ -39,8 +39,7 @@ export default function NoteError({
           This note couldn&apos;t be opened
         </h2>
         <p className="max-w-md text-sm text-muted-foreground">
-          The note is still there — this is a problem reaching it. If the journal
-          is password-protected, unlock it and try again.
+          The note is still there — this is a problem reaching it.
         </p>
       </div>
       <div className="flex gap-2">

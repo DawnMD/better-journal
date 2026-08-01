@@ -138,13 +138,8 @@ export const searchRouter = {
       // ranking and the headline are guaranteed to use the identical query. Three
       // separate copies would be three chances to drift.
       //
-      // `hashedPassword IS NULL` is the load-bearing clause: without it search
-      // would return snippets from a locked journal, which is a read straight
-      // through the password. Matching but redacting would still leak that a term
-      // appears inside.
-      //
       // Tag filtering extends this statement rather than adding a second
-      // "browse by tag" query. The three security predicates above exist in
+      // "browse by tag" query. The security predicates above exist in
       // exactly one place, and a parallel branch is precisely how one of them
       // gets left out of the copy. So when there is no text, `tsq` is NULL and
       // the match, the snippet and the rank each degrade in place: everything
@@ -189,7 +184,6 @@ export const searchRouter = {
         CROSS JOIN q
         WHERE j."userId" = ${context.userId}
           AND j."trash" = false
-          AND j."hashedPassword" IS NULL
           AND (${input.journalId ?? null}::text IS NULL OR n."journalId" = ${input.journalId ?? null})
           AND (q.tsq IS NULL OR n."searchVector" @@ q.tsq)
           AND (${tagIds.length}::int = 0 OR n."id" IN (

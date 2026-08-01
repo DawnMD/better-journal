@@ -1,4 +1,3 @@
-import { hash } from "@node-rs/argon2";
 import { describe, expect, it } from "vitest";
 import {
   callerFor,
@@ -502,29 +501,6 @@ describe("getNotesInRange carries tags", () => {
     });
 
     expect(notes[0]!.tags).toEqual([]);
-  });
-
-  it("still refuses a locked journal", async () => {
-    // Tags are one more thing this endpoint now returns, so the gate in front of
-    // it has to be re-asserted rather than assumed.
-    const a = callerFor(USER_A);
-    const journal = await makeJournal(USER_A);
-    const note = await makeNote(journal.id, {
-      createdAt: new Date("2026-07-15T10:00:00Z"),
-    });
-    await a.tagRouter.addTagToNote({ noteId: note.id, name: "private" });
-
-    await testDb.journal.update({
-      where: { id: journal.id },
-      data: { hashedPassword: await hash("a-long-enough-password") },
-    });
-
-    await expect(
-      a.notesRouter.getNotesInRange({ journalId: journal.id, ...range }),
-    ).rejects.toMatchObject({
-      code: "FORBIDDEN",
-      data: { reason: "locked" },
-    });
   });
 
   it("does not leak tags across users", async () => {

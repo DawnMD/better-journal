@@ -3,11 +3,7 @@ import { format } from "date-fns";
 import z from "zod";
 import { resolveTimeZone, zonedDayAndMinutes } from "@/lib/timezone";
 import { emptyDoc, toPlainText } from "@/lib/plate";
-import {
-  assertJournalOwned,
-  assertNoteOwned,
-  assertUnlocked,
-} from "../lib/authorize";
+import { assertJournalOwned, assertNoteOwned } from "../lib/authorize";
 import { rangeWindow } from "../lib/day-window";
 import { protectedProcedure } from "../orpc";
 
@@ -140,9 +136,7 @@ export const notesRouter = {
             trash: false,
           },
         },
-        // An explicit select rather than `include`: the joined journal is only
-        // here for the lock check, and selecting fields by name keeps it out of
-        // the response the client caches. It also means adding a column to Note
+        // An explicit select rather than `include`, so adding a column to Note
         // does not silently start shipping it to the browser.
         select: {
           id: true,
@@ -151,23 +145,12 @@ export const notesRouter = {
           content: true,
           createdAt: true,
           updatedAt: true,
-          journal: { select: { hashedPassword: true } },
         },
       });
 
       if (!note) throw new ORPCError("NOT_FOUND");
 
-      // Free — the lock state came back in the query above.
-      assertUnlocked(context, note.journalId, note.journal.hashedPassword);
-
-      return {
-        id: note.id,
-        journalId: note.journalId,
-        title: note.title,
-        content: note.content,
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-      };
+      return note;
     }),
   saveNote: protectedProcedure
     .input(

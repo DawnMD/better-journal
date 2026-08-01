@@ -16,11 +16,6 @@ export const env = createEnv({
     // be "true" AND the key to be present.
     ANTHROPIC_API_KEY: z.string().optional(),
     AI_INSIGHTS_ENABLED: z.enum(["true", "false"]).default("false"),
-
-    // Signing key for journal unlock cookies. Optional so the app boots without
-    // it; server/lib/unlock.ts falls back to a per-process key and warns in
-    // production.
-    UNLOCK_TOKEN_SECRET: z.string().optional(),
   },
   client: {
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string(),
@@ -51,7 +46,6 @@ export const env = createEnv({
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     AI_INSIGHTS_ENABLED: process.env.AI_INSIGHTS_ENABLED,
     NEXT_PUBLIC_AI_INSIGHTS_ENABLED: process.env.NEXT_PUBLIC_AI_INSIGHTS_ENABLED,
-    UNLOCK_TOKEN_SECRET: process.env.UNLOCK_TOKEN_SECRET,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,

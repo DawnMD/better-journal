@@ -16,10 +16,6 @@ model Journal {
   description String?
   userId      String
   trash       Boolean  @default(false)
-  /// Argon2id hash. Null means the journal is not password-protected.
-  /// A protected journal additionally requires a valid unlock token — see
-  /// server/lib/unlock.ts; the hash alone is not the access check.
-  hashedPassword String?
   notes       Note[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

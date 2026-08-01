@@ -1,13 +1,5 @@
-import { hash } from "@node-rs/argon2";
 import { describe, expect, it } from "vitest";
-import {
-  callerFor,
-  makeJournal,
-  makeNote,
-  testDb,
-  USER_A,
-  USER_B,
-} from "../helpers/db";
+import { callerFor, makeJournal, makeNote, USER_A, USER_B } from "../helpers/db";
 
 const doc = (text: string) => [{ type: "p", children: [{ text }] }];
 
@@ -187,23 +179,6 @@ describe("export respects range and ownership", () => {
         format: "markdown",
       }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-
-  it("refuses a locked journal", async () => {
-    // Export would otherwise be the simplest way around the password.
-    const journal = await makeJournal(USER_A);
-    await makeNote(journal.id, { content: doc("secret") });
-    await testDb.journal.update({
-      where: { id: journal.id },
-      data: { hashedPassword: await hash("a-long-enough-password") },
-    });
-
-    await expect(
-      callerFor(USER_A).exportRouter.exportJournal({
-        journalId: journal.id,
-        format: "markdown",
-      }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("reports an empty range rather than emitting an empty file", async () => {

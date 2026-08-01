@@ -1,4 +1,3 @@
-import { hash } from "@node-rs/argon2";
 import { describe, expect, it } from "vitest";
 import { HL_END, HL_SPLIT, HL_START } from "@/lib/search";
 import {
@@ -189,23 +188,6 @@ describe("search respects every access boundary", () => {
 
     const results = await callerFor(USER_A).searchRouter.search({
       query: "findable",
-    });
-
-    expect(results).toEqual([]);
-  });
-
-  it("excludes password-protected journals entirely", async () => {
-    // Not just hiding the text: matching a locked journal at all would confirm a
-    // term appears inside it, which is a read straight through the password.
-    const journal = await makeJournal(USER_A, { title: "Locked" });
-    await makeSearchableNote(journal.id, "Secret", "very private confession");
-    await testDb.journal.update({
-      where: { id: journal.id },
-      data: { hashedPassword: await hash("a-long-enough-password") },
-    });
-
-    const results = await callerFor(USER_A).searchRouter.search({
-      query: "confession",
     });
 
     expect(results).toEqual([]);
@@ -417,41 +399,6 @@ describe("search by tag", () => {
       tagIds: [workId, urgentId],
     });
     expect(two.map((r) => r.title)).toEqual(["Both"]);
-  });
-
-  it("never returns a tagged note from a password-protected journal", async () => {
-    // Mandatory. Tag filtering is a *new* way to ask "does a note exist", so it
-    // has to go through the same gate the text path does — otherwise the lock
-    // leaks through the feature that was added last.
-    const journal = await makeJournal(USER_A, { title: "Locked" });
-    const note = await makeSearchableNote(
-      journal.id,
-      "Secret",
-      "very private confession",
-    );
-
-    // Tagged before locking; a tag cannot be attached through the lock.
-    const secretId = await tag(USER_A, note.id, "secret");
-
-    await testDb.journal.update({
-      where: { id: journal.id },
-      data: { hashedPassword: await hash("a-long-enough-password") },
-    });
-
-    expect(
-      await callerFor(USER_A).searchRouter.search({
-        query: "",
-        tagIds: [secretId],
-      }),
-    ).toEqual([]);
-
-    // And not through the combined path either.
-    expect(
-      await callerFor(USER_A).searchRouter.search({
-        query: "confession",
-        tagIds: [secretId],
-      }),
-    ).toEqual([]);
   });
 
   it("never returns a tagged note from a trashed journal", async () => {

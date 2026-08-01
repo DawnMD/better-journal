@@ -10,8 +10,8 @@ import { protectedProcedure } from "../orpc";
  * Data portability: get your writing out.
  *
  * Markdown for reading, JSON for re-importing. Both go through
- * `assertJournalOwned`, which also refuses a locked journal — an export endpoint
- * that ignored the password would be the easiest way around it.
+ * `assertJournalOwned` — an export endpoint that skipped the ownership check
+ * would be the easiest way to read someone else's writing.
  *
  * PDF is deliberately not implemented. It is the least useful of the three and
  * the most dependency-heavy (a headless browser or a LaTeX toolchain in the

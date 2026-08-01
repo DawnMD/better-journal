@@ -24,20 +24,11 @@ export const testDb = new PrismaClient({
  * exercising the same code path a signed-in request takes. There is no server to
  * boot and no fetch to mock.
  */
-export function callerFor(
-  userId: string | null,
-  /**
-   * Unlock tokens this "request" carries, keyed by journal id — the test-suite
-   * stand-in for the HttpOnly cookies the browser would send. Omit it to
-   * simulate a caller who has not unlocked anything.
-   */
-  unlockTokens: Record<string, string> = {},
-) {
+export function callerFor(userId: string | null) {
   return createRouterClient(router, {
     context: {
       db: testDb,
       userId,
-      unlockToken: (journalId: string) => unlockTokens[journalId],
     },
   });
 }
