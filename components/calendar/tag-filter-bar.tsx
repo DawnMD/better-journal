@@ -65,7 +65,7 @@ export const TagFilterBar = ({
   };
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+    <div className="my-2 flex flex-wrap items-center gap-1.5">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={<Button variant="outline" size="sm" className="h-7 gap-1.5" />}
