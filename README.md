@@ -4,7 +4,7 @@
 
 A private journaling app built around the question *"what did I actually write this year?"* — a rich-text editor with autosave, full-text search across every entry, password-protected journals, and a dashboard that turns a year of writing into streaks, a contribution heatmap, and word counts.
 
-> **Screenshot:** run `pnpm db:seed -- --user <your-clerk-id>` then `pnpm dev` and capture `/dashboard`. Save it to `docs/dashboard.png` and reference it here — the seeded dataset spans six months, so the heatmap and charts have real shape.
+> **Screenshot:** run `pnpm db:seed -- --user <your-clerk-id>` then `pnpm dev` and capture `/dashboard`. Save it to `docs/dashboard.png` and reference it here — the seeded dataset spans two years, so the heatmap and charts have real shape.
 
 ---
 
@@ -110,11 +110,29 @@ pnpm dev
 The dashboard and search are both hard to evaluate against an empty database:
 
 ```bash
-pnpm db:seed -- --user user_2abc...    # 3 journals, ~250 entries over 180 days
+pnpm db:seed -- --user user_2abc...    # 13 journals, ~2,500 entries over 730 days
+pnpm db:seed -- --user ... --reset     # delete that user's journals and tags first
+pnpm db:seed -- --days 365             # shorter history
+pnpm db:seed -- --seed 7               # a different dataset, same shape
 pnpm db:seed -- --normalize            # backfill plainText / repair legacy rows
 ```
 
-Find your Clerk user id in the Clerk dashboard. The generator is seeded, so reruns produce the same dataset.
+Find your Clerk user id in the Clerk dashboard. The generator is seeded, so reruns
+produce the same dataset — row ids included, which makes the inserts idempotent.
+Journal and tag ids are derived from (user, title) rather than from the random
+stream, so a reseed lands on the same ids and does not 404 the links an open tab
+is already holding. Note ids have no natural key and do churn, so a bookmarked
+*note* will not survive a `--reset`.
+
+What you get: eleven live journals plus two in the trash, thirty-four tags (three
+of them attached to nothing), and roughly 180,000 words spread over about 600 of
+the last 730 days. The mix is deliberate — a weekday-only work log, two that come
+in bursts, one abandoned last spring, one started recently, and ten stretches
+where nothing was written at all, so streaks break, the heatmap has texture, and
+the charts are not a flat line. `prisma/seed.ts` also appends the awkward rows on
+purpose: an unwritten note, an untitled one, a 200-character title, two entries in
+the same minute, entries at 00:04 and 23:58, CJK and emoji, one note with ten
+tags, and a phrase that appears exactly once so search has an obvious answer.
 
 ### Commands
 
