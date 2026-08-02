@@ -35,11 +35,12 @@ export function callerFor(userId: string | null) {
 
 /**
  * Every table. CASCADE also clears the implicit `_NoteToTag` join table, which has
- * no Prisma model of its own.
+ * no Prisma model of its own — and `NoteShare`, which is listed anyway so a test
+ * that leaves a live share link cannot hand it to the next one.
  */
 export async function resetDb() {
   await testDb.$executeRawUnsafe(
-    `TRUNCATE TABLE "Note", "Journal", "Tag" RESTART IDENTITY CASCADE`,
+    `TRUNCATE TABLE "Note", "Journal", "Tag", "NoteShare" RESTART IDENTITY CASCADE`,
   );
 }
 

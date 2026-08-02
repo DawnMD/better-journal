@@ -91,6 +91,20 @@ Three boundaries, because context is what makes a 404 useful: the root one for u
 
 The error boundaries keep what's left: a locked journal, an unreachable database. Failures worth a "try again", which a deleted note never is. And 4xx answers are excluded from React Query's retries — three retries with backoff would leave a 404 spinning for seconds before the page could declare it.
 
+### Share links: the one thing that reads without a session
+
+A note can be published to `/share/<token>`, readable by someone with no account. Everything above says authorization is a query predicate on `userId`; this is the exception, so it is fenced off deliberately.
+
+The token is 32 bytes from `randomBytes`, base64url — not a cuid, which is what every other id here is. Cuids are unique, not secret, and this value *is* the access check, so it needs real entropy. At 256 bits, guessing one isn't an attack that exists, which is why the endpoint needs no rate limit to be safe against enumeration.
+
+`NoteShare.noteId` is unique, so a note has at most one live link. That is what makes revoking unambiguous — there is never a second token in circulation that the owner forgot about — and it makes sharing idempotent: pressing Share twice returns the same URL. Revoking deletes the row rather than flagging it, so sharing again mints a genuinely new token instead of resurrecting one that somebody was told was dead.
+
+The note is read *through* the share row on every request rather than copied into it, so the recipient sees edits and a revoke lands immediately. `journal.trash` is re-checked on that read, which means trashing a journal darkens its links with no sweep over `NoteShare`, and restoring it brings them back.
+
+Two things the public procedure does not do: it does not `include`, and it does not return an id. `getSharedNote` selects `title`, `content` and `createdAt` by name — a link should say what was shared and nothing about who shared it or what else they have written, and an `include` would leak the next column somebody adds to `Note`.
+
+The page renders on the server with `PlateStatic`, so a recipient gets markup rather than the editor, and the token never reaches application JavaScript. `/share(.*)` is public in `proxy.ts`; `/rpc` deliberately is not, so the public procedure has no anonymous HTTP entrance at all.
+
 ---
 
 ## Local setup

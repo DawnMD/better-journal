@@ -34,6 +34,7 @@ model Note {
   /// than walking the Plate JSON — simpler and much faster to index.
   plainText String?
   tags      Tag[]
+  share     NoteShare?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -45,6 +46,30 @@ model Note {
   searchVector Unsupported("tsvector")?
 
   @@index([journalId, createdAt])
+}
+
+/// A note published to anyone holding the link — the one row in this schema that
+/// is deliberately readable without a session.
+///
+/// `noteId` is unique, so a note has at most one live link. That is what makes
+/// "revoke" unambiguous: there is never a second token still in circulation that
+/// the owner has forgotten about, and re-sharing an already-shared note hands
+/// back the same URL rather than quietly minting a parallel one.
+///
+/// Nothing here says who may read it — possession of the token *is* the
+/// authorization, which is why `token` is 32 bytes of CSPRNG output rather than a
+/// cuid. The link is only as private as the channel it is pasted into.
+///
+/// Cascades from Note, so deleting a note takes its link with it. Trashing the
+/// *journal* does not delete the row — it does not have to, because every read
+/// re-checks `journal.trash`, so a trashed journal's links go dark and come back
+/// if it is restored.
+model NoteShare {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  noteId    String   @unique
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
 
 /// Tags belong to a user, not to a journal, so the same tag can span journals.

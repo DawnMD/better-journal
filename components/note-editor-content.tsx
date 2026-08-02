@@ -5,6 +5,7 @@ import {
   clearSaveStatus,
   setSaveStatus,
 } from "@/components/shell/save-status";
+import { ShareNoteButton } from "@/components/share/share-note-button";
 import { NoteTags } from "@/components/tags/note-tags";
 import { BlockquoteElement } from "@/components/ui/blockquote-node";
 import { Editor, EditorContainer } from "@/components/ui/editor";
@@ -196,6 +197,10 @@ export const NoteEditorContent = ({
         <span className="tabular-nums">
           {words.toLocaleString()} {words === 1 ? "word" : "words"}
         </span>
+        {/* Pushed to the far end of the dateline: it is an action about the
+            entry, not another fact about it, so it sits apart from the two that
+            are. */}
+        <ShareNoteButton noteId={note.id} />
       </div>
 
       <NoteTitle noteId={note.id} title={note.title ?? ""} />
