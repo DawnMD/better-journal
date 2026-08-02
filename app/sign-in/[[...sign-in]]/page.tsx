@@ -1,23 +1,32 @@
 "use client";
 
-import { clerkAppearanceFor } from "@/lib/clerk-appearance";
-import { SignIn } from "@clerk/nextjs";
-import { useTheme } from "next-themes";
+import { ResetPasswordFlow } from "@/components/auth/reset-password-flow";
+import { SignInFlow } from "@/components/auth/sign-in-flow";
+import { useRedirectWhenSignedIn } from "@/components/auth/use-redirect-when-signed-in";
+import { useState } from "react";
 
-// A client component only so it can read the resolved theme — Clerk takes its
-// palette as a prop, so nothing else can make the card follow `.dark`.
+/**
+ * `/sign-in`, and every detour from it.
+ *
+ * The route is still an optional catch-all because Clerk sends its own
+ * redirects to sub-paths of `NEXT_PUBLIC_CLERK_SIGN_IN_URL`; what changed is
+ * that the segment no longer selects a Clerk-rendered screen. Which form shows
+ * is state, not a URL, because a password reset is one continuous `SignIn`
+ * attempt held in the client — navigating between its steps would be a chance
+ * to drop it.
+ */
 export default function SignInPage() {
-  const { resolvedTheme } = useTheme();
+  const [resetEmail, setResetEmail] = useState<string | null>(null);
+  const signedIn = useRedirectWhenSignedIn();
 
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-4">
-      <div className="space-y-2 text-center">
-        <h1 className="font-serif text-3xl tracking-tight">Better Journal</h1>
-        <p className="text-sm text-muted-foreground">
-          Pick up where you left off.
-        </p>
-      </div>
-      <SignIn appearance={clerkAppearanceFor(resolvedTheme)} />
-    </div>
+  if (signedIn) return null;
+
+  return resetEmail === null ? (
+    <SignInFlow onForgotPassword={setResetEmail} />
+  ) : (
+    <ResetPasswordFlow
+      initialEmail={resetEmail}
+      onCancel={() => setResetEmail(null)}
+    />
   );
 }
