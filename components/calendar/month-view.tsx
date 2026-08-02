@@ -1,29 +1,20 @@
 "use client";
 
-import { NoteEvent, type CalendarNote } from "@/components/calendar/note-event";
+import { MonthCell } from "@/components/calendar/month-cell";
+import type { CalendarNote } from "@/components/calendar/note-event";
 import type { RangeKey } from "@/components/note-row-actions";
 import { DAY_KEY } from "@/lib/calendar";
-import { cn } from "@/lib/utils";
 import { format, isSameMonth } from "date-fns";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /**
- * How many notes a cell shows before it collapses into "+N more".
- *
- * A month cell has room for about this many at the grid's minimum height. Past
- * it the cell would either grow — making the six rows different heights, which
- * is the jumping the fixed grid exists to prevent — or clip silently, which is
- * worse than saying how much was hidden.
- */
-const MAX_PER_CELL = 3;
-
-/**
  * The month grid.
  *
- * Six fixed weeks of cells, each holding its own notes rather than a count. The
- * badge-and-side-panel arrangement this replaced made you click a day to learn
- * whether it was worth clicking; here the answer is already on the page.
+ * Six fixed weeks of cells, each showing its own notes as dots rather than as a
+ * count you have to click to resolve. The badge-and-side-panel arrangement this
+ * replaced made you click a day to learn whether it was worth clicking; here the
+ * shape of the month is on the page and the titles are one hover away.
  */
 export const MonthView = ({
   days,
@@ -77,103 +68,20 @@ export const MonthView = ({
       <div className="grid grid-cols-7">
         {days.map((day) => {
           const key = format(day, DAY_KEY);
-          const notes = notesByDay.get(key) ?? [];
-          const outside = !isSameMonth(day, anchorMonth);
-          const isToday = key === todayKey;
-          const isSelected = key === selectedKey;
-
-          const hidden = Math.max(0, notes.length - MAX_PER_CELL);
 
           return (
-            <div
+            <MonthCell
               key={key}
-              // Clicking the empty part of a cell selects it. Not a button — the
-              // cell contains links and a menu, and a nested interactive element
-              // inside a button is neither valid nor operable. That leaves this
-              // click mouse-only, which is why it is an enhancement rather than
-              // the only route: the day-number button below is focusable and
-              // reaches the same day.
-              onClick={() => onSelectDay(day)}
-              className={cn(
-                "min-h-28 border-t border-l border-border/60 p-1 text-left transition-colors",
-                // The header already draws the grid's top edge, and the
-                // container clips its left one.
-                "[&:nth-child(7n+1)]:border-l-0 [&:nth-child(-n+7)]:border-t-0",
-                // Days outside the month recede rather than getting a fill of
-                // their own. A `bg-muted/30` block put a second colour into the
-                // grid to encode something the dimmed numbers already say, and
-                // on paper it read as a stain rather than as "not this month".
-                outside ? "opacity-45" : "hover:bg-muted/40",
-                isSelected && "bg-accent/70 hover:bg-accent/70",
-              )}
-            >
-              <div className="mb-1 flex items-center justify-between gap-1">
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpenDay(day);
-                  }}
-                  aria-label={`${format(day, "EEEE, MMMM d, yyyy")}${
-                    notes.length === 0
-                      ? ", no notes"
-                      : `, ${notes.length} ${notes.length === 1 ? "note" : "notes"}`
-                  }`}
-                  className={cn(
-                    "flex size-6 items-center justify-center rounded-full font-mono text-[11px] tabular-nums",
-                    "hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                    outside && "text-muted-foreground",
-                    // A clay ring, not a filled ink disc. Today is worth marking,
-                    // but a solid black circle is the heaviest mark on the grid —
-                    // heavier than any actual entry — which puts the emphasis on
-                    // the date rather than on what was written.
-                    isToday &&
-                      "ring-1 ring-brand text-brand hover:bg-brand/10",
-                  )}
-                >
-                  {format(day, "d")}
-                </button>
-                {notes.length > 0 && (
-                  <span
-                    aria-hidden
-                    className="pr-0.5 font-mono text-[10px] tabular-nums text-muted-foreground"
-                  >
-                    {notes.length}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-0.5">
-                {notes.slice(0, MAX_PER_CELL).map((note) => (
-                  <NoteEvent
-                    key={note.id}
-                    note={note}
-                    journalId={journalId}
-                    range={range}
-                    // A month cell is a seventh of the page wide. The month view
-                    // answers "what did I write", the time grid answers "when" —
-                    // so the clock stays there, and the title gets the pixels.
-                    showTime={false}
-                    // Same width argument: a named chip would leave nothing for
-                    // the title, so tags shrink to dots that carry their name in
-                    // a title and an aria-label instead.
-                    tagStyle="dots"
-                  />
-                ))}
-                {hidden > 0 && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onOpenDay(day);
-                    }}
-                    className="rounded-sm px-1 py-0.5 text-left font-mono text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  >
-                    +{hidden} more
-                  </button>
-                )}
-              </div>
-            </div>
+              day={day}
+              notes={notesByDay.get(key) ?? []}
+              outside={!isSameMonth(day, anchorMonth)}
+              isToday={key === todayKey}
+              isSelected={key === selectedKey}
+              journalId={journalId}
+              range={range}
+              onSelectDay={onSelectDay}
+              onOpenDay={onOpenDay}
+            />
           );
         })}
       </div>

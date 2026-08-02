@@ -23,7 +23,7 @@ export type CalendarNote = {
 /** How many named chips fit before the rest collapse into a count. */
 const MAX_CHIPS = 2;
 
-/** Likewise for dots, which sit in a month cell a seventh of the page wide. */
+/** Likewise for dots, which sit in a lane shared by overlapping entries. */
 const MAX_DOTS = 3;
 
 /**
@@ -34,14 +34,14 @@ const MAX_DOTS = 3;
  * writing as a wall of Google-Calendar event blocks, which asserts that an entry
  * is an *appointment* — a thing scheduled at a time, in a slot, next to other
  * things competing for it. A journal entry is none of that. Set as a line of
- * serif with its tag dots leading and a fill only under the pointer, a month cell
- * reads as a short list of what was written that day, which is what it is.
+ * serif with its tags leading and a fill only under the pointer, a day's worth
+ * reads as a short list of what was written, which is what it is.
  *
  * The whole chip is a link, with the actions menu overlaid rather than nested —
  * a `<button>` inside an `<a>` is invalid HTML and, more practically, makes the
  * menu impossible to click without also navigating. The menu is transparent
- * until the chip is hovered or something inside it is focused, so a dense month
- * cell is not a wall of "⋯", but it stays in the tab order either way.
+ * until the chip is hovered or something inside it is focused, so a busy day is
+ * not a wall of "⋯", but it stays in the tab order either way.
  */
 export const NoteEvent = ({
   note,

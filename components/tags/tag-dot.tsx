@@ -4,11 +4,11 @@ import { tagDotClasses } from "@/lib/tag-color";
 import { cn } from "@/lib/utils";
 
 /**
- * A tag reduced to a coloured dot, for the month grid.
+ * A tag reduced to a coloured dot, for note chips that have no room to name one.
  *
- * A month cell is a seventh of the page wide and already holds up to three note
- * chips, so there is no room for a named tag chip — the same constraint that
- * made the month view drop the clock (`showTime={false}`).
+ * A week column shared by two overlapping entries is half of a seventh of the
+ * page wide, so a named chip would leave nothing for the title — the same
+ * constraint that made those lanes drop the clock (`showTime={false}`).
  *
  * The dot is the one place colour carries the identity on its own, so the name
  * has to remain reachable: `title` for a pointer, `aria-label` plus `role="img"`
