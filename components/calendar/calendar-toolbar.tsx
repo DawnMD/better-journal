@@ -78,10 +78,18 @@ export const CalendarToolbar = ({
         </Button>
       </div>
 
-      {/* aria-live so a screen reader hears the new range after paging, which is
+      {/* Narrow screens give the range its own full-width line above everything
+          else — squeezed between the pager and the view switcher it truncated to
+          "August 20…", which is the one thing on this bar you cannot guess.
+
+          `order-first` rather than moving it in the markup so the reading order
+          stays the visual order at both sizes, and `basis-full` rather than
+          `w-full` because `flex-1` would otherwise override the width.
+
+          aria-live so a screen reader hears the new range after paging, which is
           otherwise a silent change to a grid it is not focused on. */}
       <h2
-        className="min-w-0 flex-1 truncate font-serif text-lg tracking-tight"
+        className="order-first min-w-0 basis-full truncate font-serif text-lg tracking-tight sm:order-none sm:flex-1 sm:basis-0"
         aria-live="polite"
       >
         {title}
