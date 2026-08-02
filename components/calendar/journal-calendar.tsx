@@ -194,7 +194,7 @@ export const JournalCalendar = ({
         }
         onToday={() => navigate({ date: parseISO(today) })}
         onViewChange={(next) => navigate({ view: next })}
-        onCreate={() => createNote({ journalId })}
+        onCreate={() => createNote({ journalId, timeZone })}
       />
 
       {/* Under the toolbar rather than inside it: the toolbar is already four

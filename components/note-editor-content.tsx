@@ -13,6 +13,8 @@ import { H1Element, H2Element, H3Element } from "@/components/ui/heading-node";
 import { HighlightLeaf } from "@/components/ui/highlight-node";
 import { MarkToolbarButton } from "@/components/ui/mark-toolbar-button";
 import { ToolbarButton } from "@/components/ui/toolbar";
+import { useTimeZone } from "@/components/use-time-zone";
+import { formatDayInZone } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
 import { normalizeValue } from "@/lib/plate";
 import {
@@ -29,7 +31,6 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import equal from "fast-deep-equal";
 import { HighlighterIcon } from "lucide-react";
-import { format } from "date-fns";
 import { KEYS, Value } from "platejs";
 import { Plate, usePlateEditor } from "platejs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -63,10 +64,14 @@ function countWords(nodes: unknown): number {
 
 export const NoteEditorContent = ({
   note,
+  serverTimeZone,
 }: {
   note: Awaited<ReturnType<typeof orpc.notesRouter.getNoteById.call>>;
+  /** The `tz` cookie's zone, used only until the browser reports its own. */
+  serverTimeZone: string;
 }) => {
   const queryClient = useQueryClient();
+  const timeZone = useTimeZone(serverTimeZone);
 
   // Historic rows may hold "" rather than a Plate document; normalizeValue turns
   // those into a real empty paragraph so the editor has something to focus.
@@ -181,8 +186,11 @@ export const NoteEditorContent = ({
           part of it, and setting it in the same serif as the title would make it
           compete with one. */}
       <div className="mb-3 flex items-center gap-2 font-mono text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
+        {/* The instant is exact in the `dateTime` attribute and read in the
+            reader's zone in the text — not the server's, which on Vercel would
+            date a note written at 02:00 IST to the day before. */}
         <time dateTime={new Date(note.createdAt).toISOString()}>
-          {format(note.createdAt, "EEE d MMM yyyy")}
+          {formatDayInZone(new Date(note.createdAt), timeZone)}
         </time>
         <span aria-hidden>·</span>
         <span className="tabular-nums">

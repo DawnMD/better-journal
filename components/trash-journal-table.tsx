@@ -10,6 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useTimeZone } from "@/components/use-time-zone";
+import { formatDateTimeInZone } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -19,13 +21,21 @@ import {
   getExpandedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { format } from "date-fns";
 import { Fragment, useState } from "react";
 
-export const TrashedJournalTable = () => {
+export const TrashedJournalTable = ({
+  serverTimeZone,
+}: {
+  /** The `tz` cookie's zone, used only until the browser reports its own. */
+  serverTimeZone: string;
+}) => {
   const { data } = useSuspenseQuery(
     orpc.journalRouter.getTrashedJournal.queryOptions(),
   );
+
+  // "Deleted at 4:22 AM" for a journal emptied at 9:52 IST, otherwise: this
+  // table is server-rendered, and `format()` would read the server's zone.
+  const timeZone = useTimeZone(serverTimeZone);
 
   const [expanded, setExpanded] = useState<ExpandedState>({});
 
@@ -121,9 +131,9 @@ export const TrashedJournalTable = () => {
                                     {note.title}
                                   </TableCell>
                                   <TableCell className="font-mono text-xs text-muted-foreground">
-                                    {format(
-                                      note.updatedAt,
-                                      "d MMM yyyy 'at' h:mm a",
+                                    {formatDateTimeInZone(
+                                      new Date(note.updatedAt),
+                                      timeZone,
                                     )}
                                   </TableCell>
                                 </TableRow>

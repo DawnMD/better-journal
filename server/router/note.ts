@@ -1,4 +1,5 @@
 import { ORPCError } from "@orpc/client";
+import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import z from "zod";
 import { resolveTimeZone, zonedDayAndMinutes } from "@/lib/timezone";
@@ -27,12 +28,22 @@ export const notesRouter = {
     .input(
       z.object({
         journalId: z.string(),
+        timeZone: timeZoneInput,
       }),
     )
     .handler(async ({ context, input }) => {
       await assertJournalOwned(context, input.journalId);
 
-      const defaultTitle = format(new Date(), "MMMM do, yyyy 'at' h:mm a");
+      // Written in the *writer's* zone, not the server's. `createdAt` is stamped
+      // by Postgres in UTC, which is right for storage — but a title is read, and
+      // on Vercel the server is UTC, so a note started at 09:52 IST came back
+      // titled "at 4:22 AM". TZDate fixes the wall clock to `zone` and date-fns
+      // v4 formats through it, the same trick `server/lib/day-window.ts` uses.
+      const zone = resolveTimeZone(input.timeZone);
+      const defaultTitle = format(
+        new TZDate(Date.now(), zone),
+        "MMMM do, yyyy 'at' h:mm a",
+      );
 
       return context.db.note.create({
         data: {

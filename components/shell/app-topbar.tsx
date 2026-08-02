@@ -8,6 +8,7 @@ import { openSearchPalette } from "@/components/search-palette";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/lib/orpc.query";
+import { clientTimeZone } from "@/lib/timezone";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftIcon, PenLineIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
@@ -212,8 +213,9 @@ function NewEntryButton() {
         disabled={isPending}
         className="h-8 gap-1.5 px-2 sm:px-3"
         onClick={() => {
-          if (target) createNote({ journalId: target });
-          else setCreatingJournal(true);
+          if (target) {
+            createNote({ journalId: target, timeZone: clientTimeZone() });
+          } else setCreatingJournal(true);
         }}
       >
         <PenLineIcon className="size-3.5" />

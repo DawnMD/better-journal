@@ -223,3 +223,98 @@ describe("the calendar grid files notes under the reader's day", () => {
     expect(notes[0]?.day).toBe("2026-07-29");
   });
 });
+
+/**
+ * The default title's date and clock, back as machine-readable numbers.
+ *
+ * Titles read "August 2nd, 2026 at 9:52 AM". Parsing rather than string-matching
+ * because the assertion needs a *tolerance*: the test clock advances between the
+ * call and the check, and a minute rolling over there is not a bug.
+ */
+function readTitle(title: string | null) {
+  const match = title?.match(
+    /^(\w+) (\d+)(?:st|nd|rd|th), (\d+) at (\d+):(\d+) (AM|PM)$/,
+  );
+  if (!match) throw new Error(`Unparsable default title: ${title}`);
+
+  const [, month, day, year, hour, minute, meridiem] = match;
+  const hour24 = (Number(hour) % 12) + (meridiem === "PM" ? 12 : 0);
+
+  return {
+    date: `${month} ${day}, ${year}`,
+    minutes: hour24 * 60 + Number(minute),
+  };
+}
+
+/** The same two fields, read off an instant directly. */
+function wallClock(instant: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant);
+
+  const at = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return {
+    date: `${at("month")} ${at("day")}, ${at("year")}`,
+    minutes: Number(at("hour")) * 60 + Number(at("minute")),
+  };
+}
+
+describe("a new note is titled in the writer's zone", () => {
+  /**
+   * The bug: the title was `format(new Date(), …)`, which reads the *server's*
+   * zone. On Vercel that is UTC, so a note started at 09:52 IST opened titled
+   * "August 2nd, 2026 at 4:22 AM" — five and a half hours in the past, and on
+   * the wrong date for anything written after 05:30 IST… or before it.
+   *
+   * Every zone here, not just IST: a positive offset, a negative one, one that
+   * is not a whole hour, and UTC itself, which is the only one the old code got
+   * right and the reason this went unnoticed in CI.
+   */
+  it.each(["Asia/Kolkata", "America/New_York", "Asia/Kathmandu", "UTC"])(
+    "quotes the local wall clock in %s, not the server's",
+    async (timeZone) => {
+      const a = callerFor(USER_A);
+      const journal = await makeJournal(USER_A);
+
+      const note = await a.notesRouter.createNote({
+        journalId: journal.id,
+        timeZone,
+      });
+
+      const title = readTitle(note.title);
+      const expected = wallClock(new Date(), timeZone);
+
+      expect(title.date, `${timeZone}: ${note.title}`).toBe(expected.date);
+      // A minute of slack for the clock ticking mid-test — and no more, since
+      // the shortest offset this has to catch (Kathmandu, +05:45) is 45.
+      expect(
+        Math.abs(title.minutes - expected.minutes),
+        `${timeZone}: ${note.title}`,
+      ).toBeLessThanOrEqual(1);
+    },
+  );
+
+  it("falls back to UTC for a junk zone rather than failing the write", async () => {
+    const a = callerFor(USER_A);
+    const journal = await makeJournal(USER_A);
+
+    const note = await a.notesRouter.createNote({
+      journalId: journal.id,
+      timeZone: "Mars/Olympus_Mons",
+    });
+
+    const title = readTitle(note.title);
+    const expected = wallClock(new Date(), "UTC");
+
+    expect(title.date).toBe(expected.date);
+    expect(Math.abs(title.minutes - expected.minutes)).toBeLessThanOrEqual(1);
+  });
+});

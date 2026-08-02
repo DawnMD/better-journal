@@ -4,6 +4,7 @@ import { PageContainer } from "@/components/shell/page-container";
 import { isNotFoundError } from "@/lib/orpc.errors";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
+import { serverTimeZone } from "@/lib/timezone.server";
 import { notFound } from "next/navigation";
 
 export default async function NotePage({
@@ -56,10 +57,14 @@ export default async function NotePage({
   // racing it. Failure here is not fatal — the client refetches.
   await prefetching;
 
+  // The dateline is a timestamp, so it needs a zone. Best-effort from the `tz`
+  // cookie — see lib/timezone.server.ts — and only until the browser answers.
+  const timeZone = await serverTimeZone();
+
   return (
     <HydrateClient client={queryClient}>
       <PageContainer width="prose">
-        <NoteEditor noteId={noteId} />
+        <NoteEditor noteId={noteId} serverTimeZone={timeZone} />
       </PageContainer>
     </HydrateClient>
   );
