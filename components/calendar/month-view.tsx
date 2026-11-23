@@ -2,7 +2,6 @@
 
 import { MonthCell } from "@/components/calendar/month-cell";
 import type { CalendarNote } from "@/components/calendar/note-event";
-import type { RangeKey } from "@/components/note-row-actions";
 import { DAY_KEY } from "@/lib/calendar";
 import { format, isSameMonth } from "date-fns";
 
@@ -23,7 +22,6 @@ export const MonthView = ({
   selectedKey,
   todayKey,
   journalId,
-  range,
   onSelectDay,
   onOpenDay,
 }: {
@@ -34,7 +32,6 @@ export const MonthView = ({
   selectedKey: string;
   todayKey: string;
   journalId: string;
-  range: RangeKey;
   onSelectDay: (day: Date) => void;
   onOpenDay: (day: Date) => void;
 }) => {
@@ -78,7 +75,6 @@ export const MonthView = ({
               isToday={key === todayKey}
               isSelected={key === selectedKey}
               journalId={journalId}
-              range={range}
               onSelectDay={onSelectDay}
               onOpenDay={onOpenDay}
             />

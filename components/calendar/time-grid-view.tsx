@@ -1,7 +1,6 @@
 "use client";
 
 import { NoteEvent, type CalendarNote } from "@/components/calendar/note-event";
-import type { RangeKey } from "@/components/note-row-actions";
 import { DAY_KEY, formatMinutes, packEvents, SLOT_MINUTES } from "@/lib/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -43,7 +42,6 @@ export const TimeGridView = ({
   todayKey,
   nowMinutes,
   journalId,
-  range,
   onSelectDay,
 }: {
   days: Date[];
@@ -53,7 +51,6 @@ export const TimeGridView = ({
   /** Minutes past local midnight, or null before hydration decides. */
   nowMinutes: number | null;
   journalId: string;
-  range: RangeKey;
   onSelectDay: (day: Date) => void;
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -181,7 +178,6 @@ export const TimeGridView = ({
                     <NoteEvent
                       note={event}
                       journalId={journalId}
-                      range={range}
                       // The time is already given by the vertical position, and
                       // a narrow lane needs every pixel for the title.
                       showTime={lanes === 1}

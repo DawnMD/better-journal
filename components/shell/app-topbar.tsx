@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/lib/orpc.query";
 import { clientTimeZone } from "@/lib/timezone";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeftIcon, PenLineIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -184,7 +184,6 @@ function SearchButton() {
 function NewEntryButton() {
   const params = useParams<{ journalId?: string }>();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [creatingJournal, setCreatingJournal] = useState(false);
 
   const { data: journals } = useQuery(
@@ -195,12 +194,9 @@ function NewEntryButton() {
 
   const { mutate: createNote, isPending } = useMutation(
     orpc.notesRouter.createNote.mutationOptions({
+      // Every cached calendar range is invalidated centrally, from
+      // lib/query/note-cache-effects.ts.
       onSuccess: ({ id: noteId }, variables) => {
-        // Matched broadly: the calendar's key carries the visible range and the
-        // reader's timezone, neither of which this button knows.
-        queryClient.invalidateQueries({
-          queryKey: orpc.notesRouter.getNotesInRange.key(),
-        });
         router.push(`/journal/${variables.journalId}/${noteId}`);
       },
     }),

@@ -1,6 +1,6 @@
 "use client";
 
-import { NoteRowActions, type RangeKey } from "@/components/note-row-actions";
+import { NoteRowActions } from "@/components/note-row-actions";
 import { TagChip } from "@/components/tags/tag-chip";
 import { TagDot } from "@/components/tags/tag-dot";
 import { formatMinutes } from "@/lib/calendar";
@@ -46,14 +46,12 @@ const MAX_DOTS = 3;
 export const NoteEvent = ({
   note,
   journalId,
-  range,
   showTime = true,
   tagStyle = "none",
   className,
 }: {
   note: CalendarNote;
   journalId: string;
-  range: RangeKey;
   showTime?: boolean;
   /**
    * How much room the caller has for tags, mirroring the `showTime` convention:
@@ -148,8 +146,6 @@ export const NoteEvent = ({
       <NoteRowActions
         noteId={note.id}
         title={note.title ?? ""}
-        journalId={journalId}
-        range={range}
         className={cn(
           "absolute top-0 right-0.5 size-5",
           "opacity-0 transition-opacity group-hover/event:opacity-100",

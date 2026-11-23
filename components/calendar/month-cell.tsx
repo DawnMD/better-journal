@@ -1,7 +1,6 @@
 "use client";
 
 import { NoteEvent, type CalendarNote } from "@/components/calendar/note-event";
-import type { RangeKey } from "@/components/note-row-actions";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -43,7 +42,6 @@ export const MonthCell = ({
   isToday,
   isSelected,
   journalId,
-  range,
   onSelectDay,
   onOpenDay,
 }: {
@@ -54,7 +52,6 @@ export const MonthCell = ({
   isToday: boolean;
   isSelected: boolean;
   journalId: string;
-  range: RangeKey;
   onSelectDay: (day: Date) => void;
   onOpenDay: (day: Date) => void;
 }) => {
@@ -183,7 +180,6 @@ export const MonthCell = ({
                   key={note.id}
                   note={note}
                   journalId={journalId}
-                  range={range}
                   showTime
                   tagStyle="chips"
                 />
