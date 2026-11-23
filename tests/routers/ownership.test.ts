@@ -19,6 +19,11 @@ import {
  * Every procedure that takes an id gets a case here. These are the tests the
  * whole suite exists for: the bug they cover shipped, and it was invisible to
  * typechecking.
+ *
+ * For notes these are wiring tests, one per procedure: they prove the procedure
+ * goes through note access. The full rule (owned / foreign / trashed /
+ * nonexistent × find / update / delete) is tested once, against the module, in
+ * tests/server/note-access.test.ts.
  */
 
 const asA = () => callerFor(USER_A);
@@ -108,18 +113,6 @@ describe("notesRouter — cross-tenant access", () => {
     expect(await testDb.note.count({ where: { id: noteA.id } })).toBe(1);
   });
 
-  it("returns NOT_FOUND — not FORBIDDEN — so ids are not enumerable", async () => {
-    // The same code for "someone else's note" and "no such note". An attacker
-        // cannot tell the two apart, which is the point.
-    const someoneElses = asB().notesRouter.getNoteById({ noteId: noteA.id });
-    const nonexistent = asB().notesRouter.getNoteById({
-      noteId: "cuid_does_not_exist",
-    });
-
-    await expectOrpcError(someoneElses, "NOT_FOUND");
-    await expectOrpcError(nonexistent, "NOT_FOUND");
-  });
-
   it("refuses anonymous callers with UNAUTHORIZED", async () => {
     // Distinct from NOT_FOUND on purpose: not being signed in is a different
     // problem from asking for something that is not yours, and the client should
@@ -131,40 +124,6 @@ describe("notesRouter — cross-tenant access", () => {
     await expectOrpcError(
       asAnon().notesRouter.createNote({ journalId: journalA.id }),
       "UNAUTHORIZED",
-    );
-  });
-});
-
-describe("notesRouter — trashed journals are inaccessible", () => {
-  it("blocks note reads and writes once the journal is trashed", async () => {
-    const journal = await makeJournal(USER_A, { trash: true });
-    const note = await makeNote(journal.id);
-
-    const a = asA();
-
-    await expectOrpcError(
-      a.notesRouter.createNote({ journalId: journal.id }),
-      "NOT_FOUND",
-    );
-    await expectOrpcError(
-      a.notesRouter.getNoteById({ noteId: note.id }),
-      "NOT_FOUND",
-    );
-    await expectOrpcError(
-      a.notesRouter.saveNote({
-        noteId: note.id,
-        content: [{ type: "p", children: [{ text: "x" }] }],
-      }),
-      "NOT_FOUND",
-    );
-    await expectOrpcError(
-      a.notesRouter.getNotesInRange({
-        journalId: journal.id,
-        start: "2026-07-30",
-        end: "2026-07-30",
-        timeZone: "UTC",
-      }),
-      "NOT_FOUND",
     );
   });
 });

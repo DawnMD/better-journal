@@ -1,7 +1,11 @@
 import { ORPCError } from "@orpc/client";
 import z from "zod";
 import { MAX_TAG_NAME, normalizeTagName } from "@/lib/tags";
-import { assertJournalOwned, assertNoteOwned } from "../lib/authorize";
+import {
+  assertJournalOwned,
+  assertNoteOwned,
+  ownedNoteWhere,
+} from "../lib/note-access";
 import { protectedProcedure } from "../orpc";
 
 /**
@@ -149,6 +153,7 @@ export const tagRouter = {
       // implicit m2m.
       return context.db.note.findMany({
         where: {
+          ...ownedNoteWhere(context.userId),
           journalId: input.journalId,
           AND: input.tagIds.map((tagId) => ({
             tags: { some: { id: tagId, userId: context.userId } },
@@ -190,7 +195,7 @@ export const tagRouter = {
       });
 
       // NOT_FOUND rather than FORBIDDEN for a tag that is simply not theirs —
-      // see server/lib/authorize.ts on why the two are the same answer here.
+      // see server/lib/note-access.ts on why the two are the same answer here.
       if (!tag) throw new ORPCError("NOT_FOUND");
 
       // Renaming to the name it already has. Not a conflict with itself, and not

@@ -1,10 +1,15 @@
-import { ORPCError } from "@orpc/client";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import z from "zod";
 import { resolveTimeZone, zonedDayAndMinutes } from "@/lib/timezone";
 import { emptyDoc, toPlainText } from "@/lib/plate";
-import { assertJournalOwned, assertNoteOwned } from "../lib/authorize";
+import {
+  assertJournalOwned,
+  deleteNote,
+  findNote,
+  ownedNoteWhere,
+  updateNote,
+} from "../lib/note-access";
 import { rangeWindow } from "../lib/day-window";
 import { protectedProcedure } from "../orpc";
 
@@ -98,6 +103,7 @@ export const notesRouter = {
 
       const notes = await context.db.note.findMany({
         where: {
+          ...ownedNoteWhere(context.userId),
           journalId: input.journalId,
           createdAt: {
             gte: start,
@@ -136,32 +142,7 @@ export const notesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      // Ownership is part of the query rather than a check on the result: a note
-      // in someone else's journal is simply not found. See assertJournalOwned
-      // for why NOT_FOUND and not FORBIDDEN.
-      const note = await context.db.note.findFirst({
-        where: {
-          id: input.noteId,
-          journal: {
-            userId: context.userId,
-            trash: false,
-          },
-        },
-        // An explicit select rather than `include`, so adding a column to Note
-        // does not silently start shipping it to the browser.
-        select: {
-          id: true,
-          journalId: true,
-          title: true,
-          content: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-
-      if (!note) throw new ORPCError("NOT_FOUND");
-
-      return note;
+      return findNote(context, input.noteId);
     }),
   saveNote: protectedProcedure
     .input(
@@ -171,30 +152,12 @@ export const notesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      // Confirms the journal is not locked. A blind scoped write would let a
-      // caller edit a protected journal's notes straight past the password, since
-      // this endpoint never mentions the journal.
-      await assertNoteOwned(context, input.noteId);
-
-      // The ownership predicate still rides on the write itself, so there is no
-      // window in which the journal could change hands between check and update.
-      const { count } = await context.db.note.updateMany({
-        where: {
-          id: input.noteId,
-          journal: {
-            userId: context.userId,
-            trash: false,
-          },
-        },
-        data: {
-          content: input.content,
-          // Kept in step with content on every save. Postgres regenerates
-          // searchVector from this automatically, so the index cannot fall behind.
-          plainText: toPlainText(input.content),
-        },
+      await updateNote(context, input.noteId, {
+        content: input.content,
+        // Kept in step with content on every save. Postgres regenerates
+        // searchVector from this automatically, so the index cannot fall behind.
+        plainText: toPlainText(input.content),
       });
-
-      if (count === 0) throw new ORPCError("NOT_FOUND");
 
       // Only the note, and only what changed. Returning the joined journal row
       // here previously let the caller write a mismatched shape into the
@@ -212,22 +175,7 @@ export const notesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      await assertNoteOwned(context, input.noteId);
-
-      const { count } = await context.db.note.updateMany({
-        where: {
-          id: input.noteId,
-          journal: {
-            userId: context.userId,
-            trash: false,
-          },
-        },
-        data: {
-          title: input.title,
-        },
-      });
-
-      if (count === 0) throw new ORPCError("NOT_FOUND");
+      await updateNote(context, input.noteId, { title: input.title });
 
       return { id: input.noteId, title: input.title };
     }),
@@ -238,19 +186,7 @@ export const notesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      await assertNoteOwned(context, input.noteId);
-
-      const { count } = await context.db.note.deleteMany({
-        where: {
-          id: input.noteId,
-          journal: {
-            userId: context.userId,
-            trash: false,
-          },
-        },
-      });
-
-      if (count === 0) throw new ORPCError("NOT_FOUND");
+      await deleteNote(context, input.noteId);
 
       return { id: input.noteId };
     }),

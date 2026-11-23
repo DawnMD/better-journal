@@ -20,7 +20,7 @@ describe("isNotFoundError", () => {
   });
 
   it("matches across the client/server package boundary", () => {
-    // server/lib/authorize.ts throws the @orpc/server export; the pages check
+    // server/lib/note-access.ts throws the @orpc/server export; the pages check
     // with the @orpc/client one. If these ever stopped being the same class,
     // every 404 would silently degrade into an error page.
     expect(isNotFoundError(new ClientORPCError("NOT_FOUND"))).toBe(true);
