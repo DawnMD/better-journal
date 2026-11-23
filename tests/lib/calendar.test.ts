@@ -11,7 +11,7 @@ import {
   viewTitle,
   visibleDays,
 } from "@/lib/calendar";
-import { MAX_RANGE_DAYS } from "@/server/lib/day-window";
+import { MAX_RANGE_DAYS } from "@/server/lib/reader-calendar";
 import { format, parseISO } from "date-fns";
 
 const day = (iso: string) => parseISO(iso);

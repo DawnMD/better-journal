@@ -4,7 +4,7 @@
  * Deliberately free of `date-fns` / `@date-fns/tz` imports so it can be pulled
  * into a client component without dragging the tz database into the browser
  * bundle. The actual day-boundary arithmetic lives in
- * `server/lib/day-window.ts`, which builds on this.
+ * `server/lib/reader-calendar.ts`, which builds on this.
  */
 
 export const DEFAULT_TIME_ZONE = "UTC";
