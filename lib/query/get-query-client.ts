@@ -1,13 +1,26 @@
 import {
+  MutationCache,
   QueryClient,
   defaultShouldDehydrateQuery,
   environmentManager,
 } from "@tanstack/react-query";
 import { isRequestError } from "@/lib/orpc.errors";
+import { applyNoteCacheEffects } from "@/lib/query/note-cache-effects";
 import { serializer } from "@/lib/serializer";
 
 function makeQueryClient() {
-  return new QueryClient({
+  const queryClient: QueryClient = new QueryClient({
+    // Note mutations' cache effects are applied here, once, from the table in
+    // note-cache-effects.ts, rather than by each component that fires them.
+    mutationCache: new MutationCache({
+      onSuccess: (data, _variables, _onMutateResult, mutation) => {
+        applyNoteCacheEffects(
+          queryClient,
+          mutation.options.mutationKey,
+          data,
+        );
+      },
+    }),
     defaultOptions: {
       queries: {
         queryKeyHashFn(queryKey) {
@@ -46,6 +59,8 @@ function makeQueryClient() {
       },
     },
   });
+
+  return queryClient;
 }
 
 let browserQueryClient: QueryClient | undefined = undefined;

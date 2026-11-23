@@ -2,7 +2,7 @@
 
 import { orpc } from "@/lib/orpc.query";
 import { cn } from "@/lib/utils";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -26,7 +26,6 @@ export const NoteTitle = ({
   noteId: string;
   title: string;
 }) => {
-  const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [edit, setEdit] = useState<{ base: string; draft: string } | null>(
     null,
@@ -39,17 +38,9 @@ export const NoteTitle = ({
 
   const { mutate: renameNote, isPending } = useMutation(
     orpc.notesRouter.renameNote.mutationOptions({
-      onSuccess: ({ title: nextTitle }) => {
-        queryClient.setQueryData(
-          orpc.notesRouter.getNoteById.queryKey({ input: { noteId } }),
-          (prev) => (prev ? { ...prev, title: nextTitle } : prev),
-        );
-        // The journal's calendar is keyed by visible range and timezone, neither
-        // of which this component knows, so match the procedure broadly and let
-        // React Query refetch whichever grid is on screen.
-        queryClient.invalidateQueries({
-          queryKey: orpc.notesRouter.getNotesInRange.key(),
-        });
+      // The cached note and every calendar range are patched centrally, from
+      // lib/query/note-cache-effects.ts.
+      onSuccess: () => {
         setEdit(null);
       },
       onError: (error) => {

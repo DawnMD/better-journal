@@ -23,7 +23,6 @@ import { clientTimeZone } from "@/lib/timezone";
 import {
   useMutation,
   useQuery,
-  useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
@@ -68,7 +67,6 @@ export const JournalCalendar = ({
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const queryClient = useQueryClient();
 
   const timeZone = clientTimeZone();
   const today = useToday(serverToday);
@@ -165,12 +163,9 @@ export const JournalCalendar = ({
 
   const { mutate: createNote, isPending: isCreating } = useMutation(
     orpc.notesRouter.createNote.mutationOptions({
+      // Every cached range is invalidated centrally, from
+      // lib/query/note-cache-effects.ts.
       onSuccess: ({ id: noteId }) => {
-        queryClient.invalidateQueries({
-          queryKey: orpc.notesRouter.getNotesInRange.queryKey({
-            input: { journalId, ...range },
-          }),
-        });
         router.push(`/journal/${journalId}/${noteId}`);
       },
     }),
@@ -215,7 +210,6 @@ export const JournalCalendar = ({
           selectedKey={selectedKey}
           todayKey={today}
           journalId={journalId}
-          range={range}
           onSelectDay={(day) => navigate({ date: day })}
           onOpenDay={(day) => navigate({ date: day, view: "day" })}
         />
@@ -227,7 +221,6 @@ export const JournalCalendar = ({
           todayKey={today}
           nowMinutes={nowMinutes}
           journalId={journalId}
-          range={range}
           onSelectDay={(day) => navigate({ date: day })}
         />
       )}

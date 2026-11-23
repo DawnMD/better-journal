@@ -16,7 +16,7 @@ import { useTimeZone } from "@/components/use-time-zone";
 import { formatDayInZone } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
 import { normalizeValue } from "@/lib/plate";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import equal from "fast-deep-equal";
 import { HighlighterIcon } from "lucide-react";
 import { KEYS, Value } from "platejs";
@@ -58,7 +58,6 @@ export const NoteEditorContent = ({
   /** The `tz` cookie's zone, used only until the browser reports its own. */
   serverTimeZone: string;
 }) => {
-  const queryClient = useQueryClient();
   const timeZone = useTimeZone(serverTimeZone);
 
   // Historic rows may hold "" rather than a Plate document; normalizeValue turns
@@ -72,20 +71,10 @@ export const NoteEditorContent = ({
     value: initialValue,
   });
 
+  // The cached note's content is patched centrally, from
+  // lib/query/note-cache-effects.ts, along with search and stats.
   const { mutateAsync: saveNote } = useMutation(
-    orpc.notesRouter.saveNote.mutationOptions({
-      onSuccess(updated) {
-        // Patch only the field that changed. saveNote used to return the joined
-        // journal row, and writing that whole object here overwrote the
-        // getNoteById cache entry with a different shape.
-        queryClient.setQueryData(
-          orpc.notesRouter.getNoteById.queryKey({
-            input: { noteId: note.id },
-          }),
-          (prev) => (prev ? { ...prev, content: updated.content } : prev),
-        );
-      },
-    }),
+    orpc.notesRouter.saveNote.mutationOptions(),
   );
 
   const lastSaved = useRef<Value>(structuredClone(initialValue));

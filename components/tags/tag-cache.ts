@@ -16,7 +16,8 @@ import type { QueryClient } from "@tanstack/react-query";
  *
  * `getNotesInRange` is invalidated *broadly*, by partial key. A tag can be
  * changed from the editor, which has no idea which calendar range or timezone is
- * cached — the same reason components/note-title.tsx invalidates broadly there.
+ * cached — the same reason note mutations match it by partial key in
+ * lib/query/note-cache-effects.ts.
  */
 export function invalidateAfterTagChange(
   queryClient: QueryClient,
