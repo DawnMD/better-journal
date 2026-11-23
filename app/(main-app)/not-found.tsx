@@ -6,7 +6,7 @@ import Link from "next/link";
 /**
  * 404 inside the signed-in shell — in practice a journal id that no longer
  * resolves: trashed, deleted, or never the caller's to begin with. The routers
- * answer all three the same way on purpose (see server/lib/authorize.ts), so
+ * answer all three the same way on purpose (see server/lib/note-access.ts), so
  * this page cannot say which, and should not try.
  *
  * Nested under (main-app) so the top bar and the ⌘K palette stay mounted: a dead

@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import z from "zod";
-import { assertJournalOwned } from "../lib/authorize";
+import { assertJournalOwned } from "../lib/note-access";
 import { slugify, toMarkdown } from "../lib/markdown";
 import { readerZoneInput } from "../lib/reader-calendar";
 import { protectedProcedure } from "../orpc";

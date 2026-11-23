@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { ORPCError } from "@orpc/server";
 import z from "zod";
-import { assertNoteOwned } from "../lib/authorize";
+import { assertNoteOwned, liveNoteWhere } from "../lib/note-access";
 import { protectedProcedure, publicProcedure } from "../orpc";
 
 /**
@@ -101,7 +101,7 @@ export const shareRouter = {
       const share = await context.db.noteShare.findFirst({
         where: {
           token: input.token,
-          note: { journal: { trash: false } },
+          note: liveNoteWhere,
         },
         select: {
           note: {

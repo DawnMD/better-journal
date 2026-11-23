@@ -2,7 +2,7 @@ import { ORPCError } from "@orpc/client";
 import { HL_END, HL_START } from "@/lib/search";
 import { MAX_TAG_FILTER } from "@/lib/tags";
 import z from "zod";
-import { assertJournalOwned } from "../lib/authorize";
+import { assertJournalOwned } from "../lib/note-access";
 import { protectedProcedure } from "../orpc";
 
 /**
@@ -108,7 +108,6 @@ export const searchRouter = {
     )
     .handler(async ({ context, input }) => {
       if (input.journalId) {
-        // Also enforces the journal's password lock.
         await assertJournalOwned(context, input.journalId);
       }
 
