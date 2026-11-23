@@ -5,8 +5,7 @@
 // into a 500, so the ordering is load-bearing rather than stylistic.
 import "@/lib/orpc.server";
 
-import { BaseBasicBlocksKit } from "@/components/editor/plugins/basic-blocks-base-kit";
-import { BaseBasicMarksKit } from "@/components/editor/plugins/basic-marks-base-kit";
+import { createNoteStaticEditor } from "@/components/editor/note-static-plugins";
 import { ThemeToggle } from "@/components/marketing/theme-toggle";
 import { PageContainer } from "@/components/shell/page-container";
 import { SharedDateline } from "@/components/share/shared-dateline";
@@ -14,12 +13,10 @@ import { Button } from "@/components/ui/button";
 import { EditorStatic } from "@/components/ui/editor-static";
 import { client } from "@/lib/orpc.client";
 import { isNotFoundError } from "@/lib/orpc.errors";
-import { normalizeValue } from "@/lib/plate";
 import { serverTimeZone } from "@/lib/timezone.server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createSlateEditor } from "platejs";
 import { cache } from "react";
 
 /**
@@ -82,13 +79,9 @@ export default async function SharedNotePage({
   // Best-effort, and only until the browser answers — see SharedDateline.
   const timeZone = await serverTimeZone();
 
-  // The read-only twin of the editor's plugin list: the same blocks and marks,
-  // bound to the `*Static` components instead of the React ones. Built per
-  // request because it carries this note's value.
-  const editor = createSlateEditor({
-    plugins: [...BaseBasicBlocksKit, ...BaseBasicMarksKit],
-    value: normalizeValue(note.content) as never,
-  });
+  // The read-only twin of the editor: the note document schema's types, bound
+  // to the `*Static` components instead of the React ones.
+  const editor = createNoteStaticEditor(note.content);
 
   return (
     <>
