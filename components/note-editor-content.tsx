@@ -1,5 +1,6 @@
 "use client";
 
+import { noteEditorPlugins } from "@/components/editor/note-editor-plugins";
 import { NoteTitle } from "@/components/note-title";
 import {
   clearSaveStatus,
@@ -7,28 +8,14 @@ import {
 } from "@/components/shell/save-status";
 import { ShareNoteButton } from "@/components/share/share-note-button";
 import { NoteTags } from "@/components/tags/note-tags";
-import { BlockquoteElement } from "@/components/ui/blockquote-node";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 import { FixedToolbar } from "@/components/ui/fixed-toolbar";
-import { H1Element, H2Element, H3Element } from "@/components/ui/heading-node";
-import { HighlightLeaf } from "@/components/ui/highlight-node";
 import { MarkToolbarButton } from "@/components/ui/mark-toolbar-button";
 import { ToolbarButton } from "@/components/ui/toolbar";
 import { useTimeZone } from "@/components/use-time-zone";
 import { formatDayInZone } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
 import { normalizeValue } from "@/lib/plate";
-import {
-  BlockquotePlugin,
-  BoldPlugin,
-  H1Plugin,
-  H2Plugin,
-  H3Plugin,
-  HighlightPlugin,
-  ItalicPlugin,
-  StrikethroughPlugin,
-  UnderlinePlugin,
-} from "@platejs/basic-nodes/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import equal from "fast-deep-equal";
 import { HighlighterIcon } from "lucide-react";
@@ -79,18 +66,9 @@ export const NoteEditorContent = ({
   const initialValue = normalizeValue(note.content) as Value;
 
   const editor = usePlateEditor({
-    plugins: [
-      BoldPlugin,
-      ItalicPlugin,
-      UnderlinePlugin,
-      HighlightPlugin,
-      StrikethroughPlugin,
-      H1Plugin.withComponent(H1Element),
-      H2Plugin.withComponent(H2Element),
-      H3Plugin.withComponent(H3Element),
-      BlockquotePlugin.withComponent(BlockquoteElement),
-      HighlightPlugin.withComponent(HighlightLeaf),
-    ],
+    // Derived from the note document schema, which the share link page and the
+    // Markdown export read too — so whatever this editor writes, they render.
+    plugins: noteEditorPlugins,
     value: initialValue,
   });
 
