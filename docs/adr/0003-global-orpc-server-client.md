@@ -1,0 +1,3 @@
+# Server components reach oRPC through the global server client
+
+Server components call procedures through the isomorphic `client` in `lib/orpc.client.ts`, which picks up `globalThis.$client` installed by `lib/orpc.server.ts` and otherwise falls back to the `/rpc` HTTP link. This is oRPC's documented Next.js SSR pattern, and the ordering it depends on is guaranteed by `instrumentation.ts` importing `lib/orpc.server` at server start (with `app/layout.tsx` importing it too). An explicit per-page `getServerCaller()` was considered and rejected: it would split server and client call sites onto two clients and break the shared `orpc` query utils that server prefetches and client hooks use to build identical query keys.
