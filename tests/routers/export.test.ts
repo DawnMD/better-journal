@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { callerFor, makeJournal, makeNote, USER_A, USER_B } from "../helpers/db";
 
 const doc = (text: string) => [{ type: "p", children: [{ text }] }];
@@ -167,6 +167,54 @@ describe("export respects range and ownership", () => {
     });
 
     expect(result.content).toContain("## Last day");
+  });
+
+  it("files a note under the reader's calendar day, not the UTC day", async () => {
+    // 02:00 IST on Jul 30 is 20:30 UTC on Jul 29.
+    const a = callerFor(USER_A);
+    const journal = await makeJournal(USER_A);
+    await makeNote(journal.id, {
+      title: "Small hours",
+      content: doc("x"),
+      createdAt: new Date("2026-07-29T20:30:00Z"),
+    });
+
+    const markdown = await a.exportRouter.exportJournal({
+      journalId: journal.id,
+      format: "markdown",
+      timeZone: "Asia/Kolkata",
+    });
+
+    expect(markdown.content).toContain("*2026-07-30*");
+    expect(markdown.content).not.toContain("2026-07-29");
+  });
+
+  it("stamps the filename with today in the reader zone", async () => {
+    // 20:30 UTC on Jul 29 is already Jul 30 in IST.
+    vi.useFakeTimers({ now: new Date("2026-07-29T20:30:00Z"), toFake: ["Date"] });
+
+    try {
+      const a = callerFor(USER_A);
+      const journal = await makeJournal(USER_A, { title: "My Journal" });
+      await makeNote(journal.id, { content: doc("x") });
+
+      const markdown = await a.exportRouter.exportJournal({
+        journalId: journal.id,
+        format: "markdown",
+        timeZone: "Asia/Kolkata",
+      });
+      expect(markdown.filename).toBe("my-journal-2026-07-30.md");
+      expect(markdown.content).toContain("exported 2026-07-30");
+
+      const json = await a.exportRouter.exportJournal({
+        journalId: journal.id,
+        format: "json",
+        timeZone: "Asia/Kolkata",
+      });
+      expect(json.filename).toBe("my-journal-2026-07-30.json");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("refuses another user's journal", async () => {

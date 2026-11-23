@@ -1,9 +1,8 @@
-import { resolveTimeZone } from "@/lib/timezone";
 import { ORPCError } from "@orpc/server";
 import z from "zod";
 import { assertJournalOwned } from "../lib/authorize";
-import { dayWindow } from "../lib/day-window";
 import { slugify, toMarkdown } from "../lib/markdown";
+import { readerZoneInput } from "../lib/reader-calendar";
 import { protectedProcedure } from "../orpc";
 
 /**
@@ -33,7 +32,7 @@ export const exportRouter = {
         journalId: z.string(),
         format: z.enum(["markdown", "json"]),
         range: rangeSchema,
-        timeZone: z.string().optional(),
+        timeZone: readerZoneInput,
       }),
     )
     .handler(async ({ context, input }) => {
@@ -44,16 +43,16 @@ export const exportRouter = {
         select: { title: true, description: true, createdAt: true },
       });
 
-      const zone = resolveTimeZone(input.timeZone);
+      // The range, each note's day label and the filename stamp are all read on
+      // the reader's calendar day — see server/lib/reader-calendar.ts.
+      const calendar = input.timeZone;
 
-      // Range is bucketed in the reader's timezone, like everything else that
-      // asks "which day is this" — see server/lib/day-window.ts.
       const where = input.range
         ? {
             journalId: input.journalId,
             createdAt: {
-              gte: dayWindow(input.range.from, zone).start,
-              lt: dayWindow(input.range.to, zone).end,
+              gte: calendar.dayWindow(input.range.from).start,
+              lt: calendar.dayWindow(input.range.to).end,
             },
           }
         : { journalId: input.journalId };
@@ -78,7 +77,7 @@ export const exportRouter = {
         });
       }
 
-      const stamp = new Date().toISOString().slice(0, 10);
+      const stamp = calendar.today();
       const base = `${slugify(journal.title)}-${stamp}`;
 
       if (input.format === "json") {
@@ -95,7 +94,7 @@ export const exportRouter = {
                 createdAt: journal.createdAt,
               },
               exportedAt: new Date().toISOString(),
-              timeZone: zone,
+              timeZone: calendar.zone,
               notes: notes.map((note) => ({
                 id: note.id,
                 title: note.title,
@@ -117,7 +116,7 @@ export const exportRouter = {
       const sections = notes.map((note) => {
         const heading = `## ${note.title ?? "Untitled"}`;
         const meta = [
-          `*${note.createdAt.toISOString().slice(0, 10)}*`,
+          `*${calendar.dayOf(note.createdAt)}*`,
           note.tags.length > 0
             ? `Tags: ${note.tags.map((tag) => `\`${tag.name}\``).join(", ")}`
             : null,
