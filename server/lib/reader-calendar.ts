@@ -3,6 +3,7 @@ import {
   resolveTimeZone,
   zonedDayAndMinutes,
 } from "@/lib/timezone";
+import { Prisma } from "@/prisma/generated/prisma/client";
 import { TZDate } from "@date-fns/tz";
 import { addDays } from "date-fns";
 import z from "zod";
@@ -79,6 +80,18 @@ export type ReaderCalendar = {
 
   /** The reader's calendar day at `now`. */
   today(now?: Date): string;
+
+  /**
+   * SQL for the reader's calendar day (a Postgres `date`) on which the stored
+   * instant `column` falls — the in-database twin of `dayOf`, for aggregates
+   * that bucket by day.
+   *
+   * Timestamps are stored as `TIMESTAMP(3)` holding UTC, so the value is first
+   * labelled as UTC and then converted: `AT TIME ZONE 'UTC' AT TIME ZONE zone`.
+   * A single `AT TIME ZONE` would read the naive value as though it were
+   * already local and shift it the wrong way. The zone is a bind parameter.
+   */
+  daySql(column: Prisma.Sql): Prisma.Sql;
 };
 
 /** Builds the reader calendar for `timeZone`, falling back to UTC. */
@@ -148,6 +161,9 @@ export function readerCalendar(timeZone: string | undefined | null): ReaderCalen
     dayAndMinutesOf: (instant) => zonedDayAndMinutes(instant, zone),
 
     today: (now = new Date()) => dayKeyInTimeZone(now, zone),
+
+    daySql: (column) =>
+      Prisma.sql`((${column} AT TIME ZONE 'UTC' AT TIME ZONE ${zone})::date)`,
   };
 }
 

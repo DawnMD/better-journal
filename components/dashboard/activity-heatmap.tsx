@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import { formatDate, formatNumber } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
-import { clientTimeZone } from "@/lib/timezone";
+import { useReaderZone } from "@/components/reader-zone";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { TableIcon } from "lucide-react";
 import Link from "next/link";
@@ -108,8 +108,11 @@ function buildWeeks(year: number, byDay: Record<string, { count: number; words: 
 }
 
 export const ActivityHeatmap = () => {
-  const timeZone = clientTimeZone();
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const { zone: timeZone, today } = useReaderZone();
+  // The reader's year, not the runtime's: around New Year they differ, and the
+  // page prefetched the reader's.
+  const thisYear = Number(today.slice(0, 4));
+  const [year, setYear] = useState(thisYear);
   const [showTable, setShowTable] = useState(false);
 
   const { data } = useSuspenseQuery(
@@ -147,7 +150,7 @@ export const ActivityHeatmap = () => {
             variant="ghost"
             size="sm"
             className="font-mono text-[11px] font-normal tracking-wide text-muted-foreground"
-            disabled={year >= new Date().getFullYear()}
+            disabled={year >= thisYear}
             onClick={() => setYear((y) => y + 1)}
             aria-label={`Show ${year + 1}`}
           >

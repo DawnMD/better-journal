@@ -2,7 +2,7 @@
 
 import { orpc } from "@/lib/orpc.query";
 import { cn } from "@/lib/utils";
-import { clientTimeZone } from "@/lib/timezone";
+import { useReaderZone } from "@/components/reader-zone";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 /**
@@ -31,7 +31,7 @@ function compact(value: number): string {
 }
 
 export const StatTiles = () => {
-  const timeZone = clientTimeZone();
+  const { zone: timeZone } = useReaderZone();
 
   const { data: totals } = useSuspenseQuery(
     orpc.statsRouter.getTotals.queryOptions({ input: { timeZone } }),

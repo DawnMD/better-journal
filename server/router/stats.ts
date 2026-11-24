@@ -1,6 +1,8 @@
-import { resolveTimeZone } from "@/lib/timezone";
+import { Prisma } from "@/prisma/generated/prisma/client";
 import z from "zod";
-import { yearWindow } from "../lib/day-window";
+import { countLiveJournals } from "../lib/journal-access";
+import { ownedNoteSql } from "../lib/note-access";
+import { readerZoneInput } from "../lib/reader-calendar";
 import { protectedProcedure } from "../orpc";
 
 /**
@@ -11,11 +13,15 @@ import { protectedProcedure } from "../orpc";
  * old calendar badges, and it is the one that gets worse the more someone uses the
  * app.
  *
- * All of it is bucketed in the reader's timezone. `createdAt` is `TIMESTAMP(3)`
- * holding UTC, so the conversion is always
- * `AT TIME ZONE 'UTC' AT TIME ZONE $tz` — labelling the naive value as UTC first,
- * then converting. A single `AT TIME ZONE` would read the stored value as though it
- * were already local and shift it the wrong way.
+ * All of it is bucketed on the reader's calendar day: each procedure takes the
+ * reader zone as `readerZoneInput` (ADR-0002) and buckets with the reader
+ * calendar's `daySql`, so the day a note is counted on here is the day the
+ * journal calendar files it under. "Today" comes from the reader calendar too,
+ * never from the database session's zone.
+ *
+ * Every query is a tagged `$queryRaw`, so every interpolated value — user id,
+ * zone, dates — is a bind parameter. Which notes count is note access's rule
+ * (`ownedNoteSql`), not a clause restated here.
  *
  * Password-protected journals ARE counted. These are pure aggregates — a count, a
  * streak, a word total — that never name a journal or expose a line of text, so
@@ -24,7 +30,12 @@ import { protectedProcedure } from "../orpc";
  * shows its content (search, note lists) still excludes them.
  */
 
-const timeZoneInput = z.string().optional();
+/** Notes the caller may count — owned notes of live journals — aliased `n`. */
+function countedNotes(userId: string) {
+  return Prisma.sql`"Note" n WHERE ${ownedNoteSql(userId, Prisma.raw(`n."journalId"`))}`;
+}
+
+const createdAt = Prisma.raw(`n."createdAt"`);
 
 /**
  * Word count for a note, in SQL.
@@ -32,53 +43,44 @@ const timeZoneInput = z.string().optional();
  * The `~ '\S'` guard matters: `regexp_split_to_array('', '\s+')` returns `{''}`,
  * whose length is 1, so an empty note would otherwise count as one word.
  */
-const WORDS = `
+const WORDS = Prisma.raw(`
   CASE WHEN coalesce(n."plainText", '') ~ '\\S'
     THEN array_length(regexp_split_to_array(btrim(n."plainText"), '\\s+'), 1)
     ELSE 0
   END
-`;
+`);
 
 export const statsRouter = {
   /** Journals, notes, words and distinct days written — the stat-tile row. */
   getTotals: protectedProcedure
-    .input(z.object({ timeZone: timeZoneInput }))
-    .handler(async ({ context, input }) => {
-      const zone = resolveTimeZone(input.timeZone);
-
-      const [row] = await context.db.$queryRawUnsafe<
-        {
-          journals: number;
-          notes: number;
-          words: number;
-          daysActive: number;
-          firstEntry: Date | null;
-        }[]
-      >(
-        `
-        SELECT
-          (SELECT COUNT(*)::int FROM "Journal" WHERE "userId" = $1 AND "trash" = false) AS "journals",
-          COUNT(n."id")::int AS "notes",
-          COALESCE(SUM(${WORDS}), 0)::int AS "words",
-          COUNT(DISTINCT (n."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE $2)::date)::int AS "daysActive",
-          MIN(n."createdAt") AS "firstEntry"
-        FROM "Note" n
-        JOIN "Journal" j ON j."id" = n."journalId"
-        WHERE j."userId" = $1 AND j."trash" = false
+    .input(z.object({ timeZone: readerZoneInput }))
+    .handler(async ({ context, input: { timeZone: calendar } }) => {
+      const [journals, [row]] = await Promise.all([
+        countLiveJournals(context),
+        context.db.$queryRaw<
+          {
+            notes: number;
+            words: number;
+            daysActive: number;
+            firstEntry: Date | null;
+          }[]
+        >`
+          SELECT
+            COUNT(n."id")::int AS "notes",
+            COALESCE(SUM(${WORDS}), 0)::int AS "words",
+            COUNT(DISTINCT ${calendar.daySql(createdAt)})::int AS "daysActive",
+            MIN(n."createdAt") AS "firstEntry"
+          FROM ${countedNotes(context.userId)}
         `,
-        context.userId,
-        zone,
-      );
+      ]);
 
-      return (
-        row ?? {
-          journals: 0,
-          notes: 0,
-          words: 0,
-          daysActive: 0,
-          firstEntry: null,
-        }
-      );
+      return {
+        journals,
+        notes: row?.notes ?? 0,
+        words: row?.words ?? 0,
+        daysActive: row?.daysActive ?? 0,
+        firstEntry: row?.firstEntry ?? null,
+      };
     }),
   /**
    * Current and longest consecutive-day writing streak.
@@ -92,19 +94,14 @@ export const statsRouter = {
    * not appear broken first thing in the morning before you have written.
    */
   getStreak: protectedProcedure
-    .input(z.object({ timeZone: timeZoneInput }))
-    .handler(async ({ context, input }) => {
-      const zone = resolveTimeZone(input.timeZone);
-
-      const [row] = await context.db.$queryRawUnsafe<
+    .input(z.object({ timeZone: readerZoneInput }))
+    .handler(async ({ context, input: { timeZone: calendar } }) => {
+      const [row] = await context.db.$queryRaw<
         { current: number; longest: number }[]
-      >(
-        `
+      >`
         WITH days AS (
-          SELECT DISTINCT (n."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE $2)::date AS d
-          FROM "Note" n
-          JOIN "Journal" j ON j."id" = n."journalId"
-          WHERE j."userId" = $1 AND j."trash" = false
+          SELECT DISTINCT ${calendar.daySql(createdAt)} AS d
+          FROM ${countedNotes(context.userId)}
         ),
         islands AS (
           SELECT d, d - (ROW_NUMBER() OVER (ORDER BY d))::int AS island
@@ -114,20 +111,16 @@ export const statsRouter = {
           SELECT COUNT(*)::int AS len, MAX(d) AS ended
           FROM islands
           GROUP BY island
-        ),
-        today AS (SELECT (now() AT TIME ZONE $2)::date AS d)
+        )
         SELECT
           COALESCE((
-            SELECT r.len FROM runs r, today t
-            WHERE r.ended >= t.d - 1
+            SELECT r.len FROM runs r
+            WHERE r.ended >= ${calendar.today()}::date - 1
             ORDER BY r.ended DESC
             LIMIT 1
           ), 0) AS "current",
           COALESCE((SELECT MAX(len) FROM runs), 0) AS "longest"
-        `,
-        context.userId,
-        zone,
-      );
+      `;
 
       return row ?? { current: 0, longest: 0 };
     }),
@@ -141,42 +134,32 @@ export const statsRouter = {
     .input(
       z.object({
         year: z.number().int().min(1970).max(9999),
-        timeZone: timeZoneInput,
+        timeZone: readerZoneInput,
       }),
     )
-    .handler(async ({ context, input }) => {
-      const zone = resolveTimeZone(input.timeZone);
-      const { start, end } = yearWindow(input.year, zone);
+    .handler(async ({ context, input: { year, timeZone: calendar } }) => {
+      const { start, end } = calendar.yearWindow(year);
 
-      const rows = await context.db.$queryRawUnsafe<
+      const rows = await context.db.$queryRaw<
         { day: string; count: number; words: number }[]
-      >(
-        `
+      >`
         SELECT
-          to_char((n."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE $2)::date, 'YYYY-MM-DD') AS "day",
+          to_char(${calendar.daySql(createdAt)}, 'YYYY-MM-DD') AS "day",
           COUNT(*)::int AS "count",
           COALESCE(SUM(${WORDS}), 0)::int AS "words"
-        FROM "Note" n
-        JOIN "Journal" j ON j."id" = n."journalId"
-        WHERE j."userId" = $1
-          AND j."trash" = false
-          AND n."createdAt" >= $3
-          AND n."createdAt" < $4
+        FROM ${countedNotes(context.userId)}
+          AND n."createdAt" >= ${start}
+          AND n."createdAt" < ${end}
         GROUP BY 1
         ORDER BY 1
-        `,
-        context.userId,
-        zone,
-        start,
-        end,
-      );
+      `;
 
       const byDay: Record<string, { count: number; words: number }> = {};
       for (const row of rows) {
         byDay[row.day] = { count: row.count, words: row.words };
       }
 
-      return { year: input.year, byDay };
+      return { year, byDay };
     }),
   /**
    * Words written per bucket over a trailing range, for the line chart.
@@ -189,53 +172,48 @@ export const statsRouter = {
     .input(
       z.object({
         range: z.enum(["30d", "90d", "12m"]).default("90d"),
-        timeZone: timeZoneInput,
+        timeZone: readerZoneInput,
       }),
     )
-    .handler(async ({ context, input }) => {
-      const zone = resolveTimeZone(input.timeZone);
-
+    .handler(async ({ context, input: { range, timeZone: calendar } }) => {
       // Daily for the short ranges; monthly for a year, where 365 daily points
       // would be noise rather than a trend.
-      const bucket = input.range === "12m" ? "month" : "day";
+      const bucket = range === "12m" ? "month" : "day";
       const interval = { "30d": "29 days", "90d": "89 days", "12m": "11 months" }[
-        input.range
+        range
       ];
+      const format = bucket === "month" ? "YYYY-MM" : "YYYY-MM-DD";
 
-      const rows = await context.db.$queryRawUnsafe<
+      // Plain `timestamp` on both sides: `date_trunc` on a bare `date` would cast
+      // it to `timestamptz` and truncate in the database session's zone instead.
+      const lastBucket = Prisma.sql`date_trunc(${bucket}, ${calendar.today()}::date::timestamp)`;
+
+      const rows = await context.db.$queryRaw<
         { bucket: string; words: number; notes: number }[]
-      >(
-        `
+      >`
         WITH calendar AS (
           SELECT generate_series(
-            date_trunc($3, (now() AT TIME ZONE $2)) - $4::interval,
-            date_trunc($3, (now() AT TIME ZONE $2)),
-            ('1 ' || $3)::interval
+            ${lastBucket} - ${interval}::interval,
+            ${lastBucket},
+            ('1 ' || ${bucket})::interval
           ) AS bucket
         ),
         entries AS (
           SELECT
-            date_trunc($3, (n."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE $2)) AS bucket,
+            date_trunc(${bucket}, ${calendar.daySql(createdAt)}::timestamp) AS bucket,
             ${WORDS} AS words
-          FROM "Note" n
-          JOIN "Journal" j ON j."id" = n."journalId"
-          WHERE j."userId" = $1 AND j."trash" = false
+          FROM ${countedNotes(context.userId)}
         )
         SELECT
-          to_char(c.bucket, CASE WHEN $3 = 'month' THEN 'YYYY-MM' ELSE 'YYYY-MM-DD' END) AS "bucket",
+          to_char(c.bucket, ${format}) AS "bucket",
           COALESCE(SUM(e.words), 0)::int AS "words",
           COUNT(e.words)::int AS "notes"
         FROM calendar c
         LEFT JOIN entries e ON e.bucket = c.bucket
         GROUP BY c.bucket
         ORDER BY c.bucket
-        `,
-        context.userId,
-        zone,
-        bucket,
-        interval,
-      );
+      `;
 
-      return { range: input.range, bucket, points: rows };
+      return { range, bucket, points: rows };
     }),
 };
