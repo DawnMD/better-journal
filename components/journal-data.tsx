@@ -2,9 +2,9 @@
 
 import { JournalCalendar } from "@/components/calendar/journal-calendar";
 import { ExportJournalButton } from "@/components/export-journal-button";
+import { isNotFoundError } from "@/lib/orpc.errors";
 import { orpc } from "@/lib/orpc.query";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { notFound } from "next/navigation";
 
 export const JournalData = ({
   id,
@@ -14,7 +14,7 @@ export const JournalData = ({
   /** Passed through to the calendar; see `useToday` for why the server supplies it. */
   serverToday: string;
 }) => {
-  const { data: journal } = useSuspenseQuery(
+  const { data: journal, error } = useSuspenseQuery(
     orpc.journalRouter.getJournalById.queryOptions({
       input: { id },
     }),
@@ -22,9 +22,11 @@ export const JournalData = ({
 
   // The page already 404s on the server for a journal that does not resolve, so
   // this covers the narrow window the server cannot: a journal trashed from
-  // another tab while this one is open, which comes back null on the next
-  // refetch. Same destination either way — the (main-app) not-found boundary.
-  if (!journal) notFound();
+  // another tab while this one is open, which answers NOT_FOUND on the next
+  // refetch. A suspense query only throws when it has no data yet, so a refetch
+  // that fails behind cached data has to be rethrown here; the journal's error
+  // boundary turns it into the same not-found view the server page shows.
+  if (isNotFoundError(error)) throw error;
 
   return (
     <div>
