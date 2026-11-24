@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { HydrateClient } from "@/components/hydration";
 import { JournalData } from "@/components/journal-data";
 import { ReaderZoneProvider } from "@/components/reader-zone";
@@ -14,6 +15,8 @@ export default async function JournalIdPage({
   params,
   searchParams,
 }: PageProps<"/journal/[journalId]">) {
+  await auth.protect();
+
   const { journalId } = await params;
   const { date, view: viewParam } = (await searchParams) as {
     date?: string;

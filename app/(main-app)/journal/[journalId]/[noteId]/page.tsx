@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { HydrateClient } from "@/components/hydration";
 import { NoteEditor } from "@/components/note-editor";
 import { ReaderZoneProvider } from "@/components/reader-zone";
@@ -11,6 +12,8 @@ import { notFound } from "next/navigation";
 export default async function NotePage({
   params,
 }: PageProps<"/journal/[journalId]/[noteId]">) {
+  await auth.protect();
+
   const { journalId, noteId } = await params;
   const queryClient = getQueryClient();
 
