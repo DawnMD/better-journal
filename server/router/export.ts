@@ -3,6 +3,7 @@ import z from "zod";
 import { assertJournalOwned } from "../lib/note-access";
 import { slugify, toMarkdown } from "../lib/markdown";
 import { readerZoneInput } from "../lib/reader-calendar";
+import { tagSummary } from "../lib/tags";
 import { protectedProcedure } from "../orpc";
 
 /**
@@ -66,7 +67,7 @@ export const exportRouter = {
           plainText: true,
           createdAt: true,
           updatedAt: true,
-          tags: { select: { name: true }, orderBy: { name: "asc" } },
+          tags: tagSummary,
         },
         orderBy: { createdAt: "asc" },
       });

@@ -67,7 +67,7 @@ export const TagManager = () => {
             // Rows are deliberately not links. A tag spans journals, but the
             // only place to browse one — the calendar filter — is scoped to a
             // single journal, so there is no correct destination yet.
-            // getNotesByTags is the natural backend for that page when it exists.
+            // Search with a tag filter is the natural backend for that page.
             tags.map((tag) => (
               <TableRow key={tag.id}>
                 <TableCell>

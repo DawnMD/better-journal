@@ -11,6 +11,7 @@ import {
   updateNote,
 } from "../lib/note-access";
 import { rangeWindow } from "../lib/day-window";
+import { tagSummary } from "../lib/tags";
 import { protectedProcedure } from "../orpc";
 
 /** Plate block node — `children` is recursive, so it is validated loosely below the top level. */
@@ -121,7 +122,7 @@ export const notesRouter = {
           // Fetching them here is also what lets the calendar filter run over
           // this one array, so the cells, the counts and the "+N more" cannot
           // disagree about which notes are on screen.
-          tags: { select: { id: true, name: true }, orderBy: { name: "asc" } },
+          tags: tagSummary,
         },
         // Ascending, unlike the old day list: the time grid reads top-down, and
         // `packEvents` needs chronological order anyway.
