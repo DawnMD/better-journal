@@ -1,7 +1,7 @@
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import z from "zod";
-import { resolveTimeZone } from "@/lib/timezone";
+import { resolveTimeZone } from "@/lib/reader-calendar-core";
 import { emptyDoc, toPlainText } from "@/lib/plate";
 import {
   assertJournalOwned,
@@ -24,7 +24,7 @@ const plateValue = z.array(
 
 /**
  * The reader's IANA timezone, e.g. `Asia/Kolkata`. Supplied by the client from
- * `Intl.DateTimeFormat().resolvedOptions().timeZone`; validated server-side in
+ * `useReaderZone()`; validated server-side in
  * `resolveTimeZone`, which falls back to UTC rather than throwing.
  */
 const timeZoneInput = z.string().optional();

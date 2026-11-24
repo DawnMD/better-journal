@@ -8,7 +8,7 @@ import {
   isValidTimeZone,
   monthKeyInTimeZone,
   resolveTimeZone,
-} from "@/lib/timezone";
+} from "@/lib/reader-calendar-core";
 
 const hours = (start: Date, end: Date) =>
   (end.getTime() - start.getTime()) / 3_600_000;

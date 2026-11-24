@@ -1,5 +1,4 @@
 import { ReaderZoneProvider, useReaderZone } from "@/components/reader-zone";
-import { clientTimeZone } from "@/lib/timezone";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,7 +37,9 @@ describe("the reader-zone provider on the server", () => {
   });
 
   it("renders in the seeded zone, not the Node process zone", () => {
-    expect(clientTimeZone()).toBe("America/New_York");
+    expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(
+      "America/New_York",
+    );
 
     const html = renderToString(
       <ReaderZoneProvider initialZone="Asia/Kolkata">
@@ -61,5 +62,81 @@ describe("the reader-zone provider on the server", () => {
 
   it("refuses to answer outside a provider rather than guessing a zone", () => {
     expect(() => renderToString(<Probe />)).toThrow(/ReaderZoneProvider/);
+  });
+});
+
+/**
+ * Timestamps print in the reader zone, not the ambient one.
+ *
+ * The bug this covers: the editor's dateline and the trash table both used
+ * `format()` from date-fns, which reads a `Date` through whatever zone the
+ * runtime is set to — the Node process's during SSR, UTC on Vercel — so a note
+ * written at 02:00 IST server-rendered with the previous day's date, then
+ * swapped on hydration.
+ */
+describe("the reader zone's date formatting", () => {
+  /** What the hook prints for `date`, rendered under a provider seeded `zone`. */
+  function printed(
+    zone: string,
+    print: (readerZone: ReturnType<typeof useReaderZone>) => string,
+  ) {
+    function Print() {
+      return <>{print(useReaderZone())}</>;
+    }
+
+    return renderToString(
+      <ReaderZoneProvider initialZone={zone}>
+        <Print />
+      </ReaderZoneProvider>,
+    );
+  }
+
+  const day = (zone: string, date: Date) =>
+    printed(zone, ({ formatDay }) => formatDay(date));
+  const dateTime = (zone: string, date: Date) =>
+    printed(zone, ({ formatDateTime }) => formatDateTime(date));
+
+  it("dates an instant by the reader's calendar", () => {
+    expect(day("Asia/Kolkata", EARLY_MORNING_IST)).toBe("Thu 30 Jul 2026");
+    expect(day("UTC", EARLY_MORNING_IST)).toBe("Wed 29 Jul 2026");
+    expect(day("America/New_York", EARLY_MORNING_IST)).toBe("Wed 29 Jul 2026");
+  });
+
+  it("keeps the dateline's `EEE d MMM yyyy` shape", () => {
+    // Single-digit day unpadded, month abbreviated, no comma.
+    expect(day("UTC", new Date("2026-08-02T12:00:00Z"))).toBe("Sun 2 Aug 2026");
+  });
+
+  it("reads the wall clock in the reader zone", () => {
+    const instant = new Date("2026-08-02T04:22:00Z");
+
+    // The exact complaint: 09:52 IST was being shown as 4:22 AM.
+    expect(dateTime("Asia/Kolkata", instant)).toBe("2 Aug 2026 at 9:52 AM");
+    expect(dateTime("UTC", instant)).toBe("2 Aug 2026 at 4:22 AM");
+  });
+
+  it("handles a zone whose offset is not a whole hour", () => {
+    // Kathmandu is +05:45. A formatter that rounded offsets would be an hour
+    // out here and nowhere else.
+    expect(dateTime("Asia/Kathmandu", new Date("2026-08-02T04:22:00Z"))).toBe(
+      "2 Aug 2026 at 10:07 AM",
+    );
+  });
+
+  it("names midnight and noon the way a reader does", () => {
+    expect(dateTime("UTC", new Date("2026-08-02T00:00:00Z"))).toBe(
+      "2 Aug 2026 at 12:00 AM",
+    );
+    expect(dateTime("UTC", new Date("2026-08-02T12:00:00Z"))).toBe(
+      "2 Aug 2026 at 12:00 PM",
+    );
+  });
+
+  it("prints in UTC when seeded with a zone that does not exist", () => {
+    // The seed comes from the `tz` cookie, which is client-written and
+    // therefore arbitrary. A `RangeError` out of Intl would blank the page.
+    expect(dateTime("Mars/Olympus", new Date("2026-08-02T04:22:00Z"))).toBe(
+      "2 Aug 2026 at 4:22 AM",
+    );
   });
 });

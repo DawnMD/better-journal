@@ -1,11 +1,13 @@
 import {
   dayKeyInTimeZone,
   resolveTimeZone,
+  TZ_COOKIE,
   zonedDayAndMinutes,
-} from "@/lib/timezone";
+} from "@/lib/reader-calendar-core";
 import { Prisma } from "@/prisma/generated/prisma/client";
 import { TZDate } from "@date-fns/tz";
 import { addDays } from "date-fns";
+import { cookies } from "next/headers";
 import z from "zod";
 
 /**
@@ -26,7 +28,7 @@ import z from "zod";
  *
  * Server-only (ADR-0001): the day-boundary arithmetic needs `@date-fns/tz`, and
  * the tz database must not reach the browser bundle. The Intl-only shared core
- * the client also uses lives in `lib/timezone.ts`.
+ * the client also uses lives in `lib/reader-calendar-core.ts`.
  */
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -165,6 +167,22 @@ export function readerCalendar(timeZone: string | undefined | null): ReaderCalen
     daySql: (column) =>
       Prisma.sql`((${column} AT TIME ZONE 'UTC' AT TIME ZONE ${zone})::date)`,
   };
+}
+
+/**
+ * The reader calendar as a server page can best know it: in the zone from the
+ * `tz` cookie (written by `ReaderZoneCookieSync`), UTC without one.
+ *
+ * Used to seed a page's `ReaderZoneProvider` and to key its prefetches on the
+ * zone the client will use. On a visitor's very first request the cookie does
+ * not exist yet, so the prefetch keys on UTC, misses, and the client fetches
+ * once; every later navigation hits. Correctness never depends on it — the
+ * authoritative zone is the one the client sends as a procedure input
+ * (ADR-0002).
+ */
+export async function readerCalendarFromCookie(): Promise<ReaderCalendar> {
+  const store = await cookies();
+  return readerCalendar(store.get(TZ_COOKIE)?.value);
 }
 
 /**

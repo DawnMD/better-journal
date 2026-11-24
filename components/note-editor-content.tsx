@@ -12,8 +12,7 @@ import { Editor, EditorContainer } from "@/components/ui/editor";
 import { FixedToolbar } from "@/components/ui/fixed-toolbar";
 import { MarkToolbarButton } from "@/components/ui/mark-toolbar-button";
 import { ToolbarButton } from "@/components/ui/toolbar";
-import { useTimeZone } from "@/components/use-time-zone";
-import { formatDayInZone } from "@/lib/format";
+import { useReaderZone } from "@/components/reader-zone";
 import { orpc } from "@/lib/orpc.query";
 import { normalizeValue } from "@/lib/plate";
 import { useMutation } from "@tanstack/react-query";
@@ -52,13 +51,10 @@ function countWords(nodes: unknown): number {
 
 export const NoteEditorContent = ({
   note,
-  serverTimeZone,
 }: {
   note: Awaited<ReturnType<typeof orpc.notesRouter.getNoteById.call>>;
-  /** The `tz` cookie's zone, used only until the browser reports its own. */
-  serverTimeZone: string;
 }) => {
-  const timeZone = useTimeZone(serverTimeZone);
+  const { formatDay } = useReaderZone();
 
   // Historic rows may hold "" rather than a Plate document; normalizeValue turns
   // those into a real empty paragraph so the editor has something to focus.
@@ -158,7 +154,7 @@ export const NoteEditorContent = ({
             reader's zone in the text — not the server's, which on Vercel would
             date a note written at 02:00 IST to the day before. */}
         <time dateTime={new Date(note.createdAt).toISOString()}>
-          {formatDayInZone(new Date(note.createdAt), timeZone)}
+          {formatDay(new Date(note.createdAt))}
         </time>
         <span aria-hidden>·</span>
         <span className="tabular-nums">

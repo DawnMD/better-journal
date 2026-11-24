@@ -1,5 +1,5 @@
 /**
- * Tag rules shared by the client and the server, the way lib/timezone.ts is.
+ * Tag rules shared by the client and the server, the way lib/reader-calendar-core.ts is.
  *
  * Normalisation in particular has to be the same function on both sides: the
  * rename dialog decides whether a draft collides with an existing tag *before*

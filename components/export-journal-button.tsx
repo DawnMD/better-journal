@@ -1,5 +1,6 @@
 "use client";
 
+import { useReaderZone } from "@/components/reader-zone";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,7 +9,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { orpc } from "@/lib/orpc.query";
-import { clientTimeZone } from "@/lib/timezone";
 import { useMutation } from "@tanstack/react-query";
 import { DownloadIcon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
@@ -23,7 +23,7 @@ import { toast } from "sonner";
  * be the move if exports ever ran to hundreds of megabytes.
  */
 export const ExportJournalButton = ({ journalId }: { journalId: string }) => {
-  const timeZone = clientTimeZone();
+  const { zone: timeZone } = useReaderZone();
 
   const { mutate: exportJournal, isPending } = useMutation(
     orpc.exportRouter.exportJournal.mutationOptions({
