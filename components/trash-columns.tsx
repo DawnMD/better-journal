@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import { orpc } from "@/lib/orpc.query";
 import { cn } from "@/lib/utils";
 import { InferClientOutputs } from "@orpc/client";
-import { ColumnDef } from "@tanstack/react-table";
+import {
+  ColumnDef,
+  createExpandedRowModel,
+  rowExpandingFeature,
+  tableFeatures,
+} from "@tanstack/react-table";
 import { ChevronRight } from "lucide-react";
 import { TrashDropdownActions } from "./trash-dropdown-actions";
 
@@ -12,11 +17,18 @@ export type TrashJournals = InferClientOutputs<
   typeof orpc.journalRouter.getTrashedJournal.call
 >[number];
 
-export const columns: ColumnDef<TrashJournals>[] = [
+/**
+ * What the trash table can do: a journal's row expands to list its notes.
+ * TanStack Table v9 only exposes the APIs of features registered here.
+ */
+export const trashTableFeatures = tableFeatures({
+  rowExpandingFeature,
+  expandedRowModel: createExpandedRowModel(),
+});
+
+export const columns: ColumnDef<typeof trashTableFeatures, TrashJournals>[] = [
   {
     id: "expand",
-    enableSorting: false,
-    enableHiding: false,
 
     header: "Notes",
 
