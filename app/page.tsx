@@ -1,7 +1,10 @@
 import { HeroPreview } from "@/components/marketing/hero-preview";
+import {
+  ClosingCardCta,
+  HeroCta,
+} from "@/components/marketing/landing-ctas";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,10 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { auth } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
 import {
-  ArrowRightIcon,
   CalendarDaysIcon,
   FlameIcon,
   LockIcon,
@@ -20,8 +21,6 @@ import {
   SearchIcon,
   TagsIcon,
 } from "lucide-react";
-import Link from "next/link";
-import { Suspense } from "react";
 
 /**
  * The front door.
@@ -31,10 +30,11 @@ import { Suspense } from "react";
  * a password field for an account they had no reason to want yet. So `/` is now
  * public (see proxy.ts) and says what the app is before asking for anything.
  *
- * A session is read here rather than in a client component because this page is
- * the one screen that is reached with and without one, and the version rendered
- * without JavaScript should already be right: a signed-in visitor gets "Open
- * your journal", not a "Get started" button that swaps under them after
+ * The page is a static shell served from the CDN. Only its three calls to
+ * action depend on the session, and each reads it on the server inside its own
+ * Suspense boundary (see landing-ctas.tsx) rather than in a client component:
+ * the streamed HTML already carries the right one, so a signed-in visitor gets
+ * "Open your journal", not a "Get started" button that swaps under them after
  * hydration.
  */
 
@@ -45,29 +45,14 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  // Every button on this page depends on the session, and a "Get started" that
-  // swaps for "Open your journal" is the thing this page avoids. So the whole
-  // page waits on the session, which Clerk checks locally from the cookie,
-  // rather than putting a static shell in front of it.
-  return (
-    <Suspense>
-      <Home />
-    </Suspense>
-  );
-}
-
-async function Home() {
-  const { userId } = await auth();
-  const signedIn = userId !== null;
-
   return (
     <>
-      <SiteHeader signedIn={signedIn} />
+      <SiteHeader />
 
       <main className="flex-1">
-        <Hero signedIn={signedIn} />
+        <Hero />
         <Features />
-        <ClosingCta signedIn={signedIn} />
+        <ClosingCta />
       </main>
 
       <SiteFooter />
@@ -82,7 +67,7 @@ async function Home() {
  * already use — eyebrow, serif line, muted prose. The three screens a visitor
  * can be on before they have written anything should read as one voice.
  */
-function Hero({ signedIn }: { signedIn: boolean }) {
+function Hero() {
   return (
     <section className="mx-auto w-full max-w-5xl px-4 pt-16 pb-14 sm:px-6 sm:pt-24">
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-5 text-center">
@@ -104,35 +89,7 @@ function Hero({ signedIn }: { signedIn: boolean }) {
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-          {signedIn ? (
-            <Button
-              size="lg"
-              nativeButton={false}
-              render={<Link href="/dashboard" />}
-            >
-              Open your journal
-              <ArrowRightIcon />
-            </Button>
-          ) : (
-            <>
-              <Button
-                size="lg"
-                nativeButton={false}
-                render={<Link href="/sign-up" />}
-              >
-                Start writing
-                <ArrowRightIcon />
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                nativeButton={false}
-                render={<Link href="/sign-in" />}
-              >
-                I already have an account
-              </Button>
-            </>
-          )}
+          <HeroCta />
         </div>
 
         <p className="font-mono text-[11px] text-muted-foreground">
@@ -235,30 +192,12 @@ function Features() {
  * A page whose only purpose is to hand someone to `/sign-up` should not make
  * them scroll back to the top to get there.
  */
-function ClosingCta({ signedIn }: { signedIn: boolean }) {
+function ClosingCta() {
   return (
     <section className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
       <Card className="[--card-spacing:--spacing(8)]">
         <CardContent className="flex flex-col items-center gap-5 text-center">
-          <div className="space-y-2">
-            <h2 className="font-serif text-2xl tracking-tight text-balance sm:text-3xl">
-              {signedIn ? "Welcome back." : "Today is a fine first entry."}
-            </h2>
-            <p className="mx-auto max-w-md text-sm text-pretty text-muted-foreground">
-              {signedIn
-                ? "Your entries, your calendar and your streak are where you left them."
-                : "It takes about a minute to set up, and the first thing you see is a blank page waiting for you."}
-            </p>
-          </div>
-
-          <Button
-            size="lg"
-            nativeButton={false}
-            render={<Link href={signedIn ? "/dashboard" : "/sign-up"} />}
-          >
-            {signedIn ? "Open your journal" : "Create your journal"}
-            <ArrowRightIcon />
-          </Button>
+          <ClosingCardCta />
         </CardContent>
       </Card>
     </section>
