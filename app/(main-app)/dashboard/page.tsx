@@ -11,7 +11,45 @@ import { getQueryClient } from "@/lib/query/get-query-client";
 import { readerCalendarFromCookie } from "@/server/lib/reader-calendar";
 import { Suspense } from "react";
 
-export default async function DashboardPage() {
+/**
+ * The heading and the three widget skeletons are the static App Shell: they
+ * render before the request is read. Everything that needs the session or the
+ * `tz` cookie lives in `DashboardStats`, behind the Suspense boundary.
+ */
+export default function DashboardPage() {
+  return (
+    <PageContainer>
+      <div className="flex flex-col gap-8">
+        <div className="space-y-1">
+          {/* "Dashboard" is what the template called it. This page is a year of
+              someone's writing looked at from above, and the subtitle already
+              says what it measures — so the heading can name the thing rather
+              than the widget it is made of. */}
+          <h1 className="font-serif text-3xl tracking-tight">
+            Your year so far
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            How your writing habit is going.
+          </p>
+        </div>
+
+        <Suspense
+          fallback={
+            <>
+              <TilesSkeleton />
+              <HeatmapSkeleton />
+              <ChartSkeleton />
+            </>
+          }
+        >
+          <DashboardStats />
+        </Suspense>
+      </div>
+    </PageContainer>
+  );
+}
+
+async function DashboardStats() {
   await auth.protect();
 
   const calendar = await readerCalendarFromCookie();
@@ -45,34 +83,17 @@ export default async function DashboardPage() {
       {/* Seeded with the zone the prefetch above was keyed on, so the
           dashboard's first paint reads the prefetched data. */}
       <ReaderZoneProvider initialZone={timeZone}>
-        <PageContainer>
-          <div className="flex flex-col gap-8">
-            <div className="space-y-1">
-              {/* "Dashboard" is what the template called it. This page is a year of
-                  someone's writing looked at from above, and the subtitle already
-                  says what it measures — so the heading can name the thing rather
-                  than the widget it is made of. */}
-              <h1 className="font-serif text-3xl tracking-tight">
-                Your year so far
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                How your writing habit is going.
-              </p>
-            </div>
+        <Suspense fallback={<TilesSkeleton />}>
+          <StatTiles />
+        </Suspense>
 
-            <Suspense fallback={<TilesSkeleton />}>
-              <StatTiles />
-            </Suspense>
+        <Suspense fallback={<HeatmapSkeleton />}>
+          <ActivityHeatmap />
+        </Suspense>
 
-            <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
-              <ActivityHeatmap />
-            </Suspense>
-
-            <Suspense fallback={<Skeleton className="h-80 w-full rounded-lg" />}>
-              <WordsChart />
-            </Suspense>
-          </div>
-        </PageContainer>
+        <Suspense fallback={<ChartSkeleton />}>
+          <WordsChart />
+        </Suspense>
       </ReaderZoneProvider>
     </HydrateClient>
   );
@@ -80,4 +101,12 @@ export default async function DashboardPage() {
 
 function TilesSkeleton() {
   return <Skeleton className="h-28 w-full rounded-lg" />;
+}
+
+function HeatmapSkeleton() {
+  return <Skeleton className="h-64 w-full rounded-lg" />;
+}
+
+function ChartSkeleton() {
+  return <Skeleton className="h-80 w-full rounded-lg" />;
 }

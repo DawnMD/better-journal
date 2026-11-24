@@ -34,6 +34,14 @@ const newsreader = Newsreader({
   style: ["normal", "italic"],
 });
 
+/**
+ * Every route's App Shell must be static, so a default <Link> can show it at
+ * once from the prefetch. Request reads belong in pages, inside Suspense; the
+ * lint rule on layouts catches a layout that reads the request before a build
+ * would.
+ */
+export const ensureStatic = "shell";
+
 export const metadata: Metadata = {
   title: "Better Journal",
   description:

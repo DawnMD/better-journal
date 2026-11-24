@@ -13,7 +13,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeftIcon, PenLineIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 /**
  * The signed-in shell, in 56 pixels.
@@ -31,18 +31,38 @@ import { useState } from "react";
  * second layout would be a second thing to keep in sync for one swapped cluster.
  */
 export function AppTopbar() {
-  const params = useParams<{ journalId?: string; noteId?: string }>();
-
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md supports-backdrop-blur:bg-background/65">
       <div className="mx-auto flex h-14 w-full max-w-[110rem] items-center gap-2 px-4 sm:gap-3 sm:px-6">
-        {params.noteId ? (
-          <NoteBar journalId={params.journalId} noteId={params.noteId} />
-        ) : (
-          <BrowseBar />
-        )}
+        {/* The bar is in the static App Shell, but which state it shows depends
+            on the URL, which a dynamic route only knows at request time. The
+            shell carries the wordmark alone, and the rest streams in. */}
+        <Suspense fallback={<Wordmark />}>
+          <TopbarContent />
+        </Suspense>
       </div>
     </header>
+  );
+}
+
+function TopbarContent() {
+  const params = useParams<{ journalId?: string; noteId?: string }>();
+
+  return params.noteId ? (
+    <NoteBar journalId={params.journalId} noteId={params.noteId} />
+  ) : (
+    <BrowseBar />
+  );
+}
+
+function Wordmark() {
+  return (
+    <Link
+      href="/dashboard"
+      className="shrink-0 rounded-sm font-serif text-[15px] font-medium tracking-tight focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    >
+      Better&nbsp;Journal
+    </Link>
   );
 }
 
@@ -50,12 +70,7 @@ export function AppTopbar() {
 function BrowseBar() {
   return (
     <>
-      <Link
-        href="/dashboard"
-        className="shrink-0 rounded-sm font-serif text-[15px] font-medium tracking-tight focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        Better&nbsp;Journal
-      </Link>
+      <Wordmark />
 
       {/* Retired with the sidebar: a BrainCircuit mark. A brain-circuit icon is
           AI-app iconography, and the AI features came out in ba0a7af — so it was

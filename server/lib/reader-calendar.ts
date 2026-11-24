@@ -8,6 +8,7 @@ import { Prisma } from "@/prisma/generated/prisma/client";
 import { TZDate } from "@date-fns/tz";
 import { addDays } from "date-fns";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import z from "zod";
 
 /**
@@ -179,8 +180,14 @@ export function readerCalendar(timeZone: string | undefined | null): ReaderCalen
  * once; every later navigation hits. Correctness never depends on it — the
  * authoritative zone is the one the client sends as a procedure input
  * (ADR-0002).
+ *
+ * Waits for `connection()` first. The calendar it returns reads the clock
+ * (`today()`), and Cache Components only allows that at request time; a cookie
+ * on its own is runtime data a prefetch may already see, so it does not defer
+ * the render far enough.
  */
 export async function readerCalendarFromCookie(): Promise<ReaderCalendar> {
+  await connection();
   const store = await cookies();
   return readerCalendar(store.get(TZ_COOKIE)?.value);
 }
