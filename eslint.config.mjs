@@ -23,6 +23,37 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // Layouts are the App Shell, which `ensureStatic = 'shell'` on the root
+    // layout requires to be static. Reading a cookie, a header or the session
+    // here would make the shell of every route beneath it render per request.
+    // Pages read the request inside their own Suspense boundary instead.
+    files: ["app/**/layout.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/headers",
+              message:
+                "A layout is part of the static App Shell. Read the request in a page, inside Suspense.",
+            },
+            {
+              name: "@clerk/nextjs/server",
+              message:
+                "A layout is part of the static App Shell. Check the session in a page, inside Suspense.",
+            },
+            {
+              name: "@/server/lib/reader-calendar",
+              message:
+                "A layout is part of the static App Shell. Seed the reader zone in a page, inside Suspense.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

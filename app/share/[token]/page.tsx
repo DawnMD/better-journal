@@ -12,13 +12,14 @@ import { PageContainer } from "@/components/shell/page-container";
 import { SharedDateline } from "@/components/share/shared-dateline";
 import { Button } from "@/components/ui/button";
 import { EditorStatic } from "@/components/ui/editor-static";
+import { Skeleton } from "@/components/ui/skeleton";
 import { client } from "@/lib/orpc.client";
 import { isNotFoundError } from "@/lib/orpc.errors";
 import { readerCalendarFromCookie } from "@/server/lib/reader-calendar";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 
 /**
  * One entry, readable by anyone holding the link.
@@ -69,24 +70,15 @@ export async function generateMetadata({
   };
 }
 
-export default async function SharedNotePage({
-  params,
-}: PageProps<"/share/[token]">) {
-  const { token } = await params;
-  const note = await loadSharedNote(token);
-
-  if (!note) notFound();
-
-  // Seeds the dateline's reader zone. Best-effort, and only until the browser
-  // answers — see SharedDateline.
-  const { zone } = await readerCalendarFromCookie();
-
-  // The read-only twin of the editor: the note document schema's types, bound
-  // to the `*Static` components instead of the React ones.
-  const editor = createNoteStaticEditor(note.content);
-
+/**
+ * The header and footer are the static shell, the same for every link. The
+ * note itself reads the token and the `tz` cookie, so it renders per request
+ * behind Suspense, and nothing about it is cached: a revoked link goes dark on
+ * the very next request.
+ */
+export default function SharedNotePage({ params }: PageProps<"/share/[token]">) {
   return (
-    <ReaderZoneProvider initialZone={zone}>
+    <>
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md supports-backdrop-blur:bg-background/65">
         <div className="mx-auto flex h-14 w-full max-w-[68ch] items-center gap-3 px-4 sm:px-6">
           <Link
@@ -112,18 +104,9 @@ export default async function SharedNotePage({
 
       <main className="flex-1">
         <PageContainer width="prose">
-          <article>
-            <SharedDateline createdAt={note.createdAt.toISOString()} />
-            {/* The same face and measure the writer saw, so a shared entry reads
-                as the thing that was written rather than a quotation of it. */}
-            <h1 className="font-serif text-[36px] leading-tight tracking-tight text-balance">
-              {note.title ?? "Untitled"}
-            </h1>
-            <EditorStatic
-              editor={editor}
-              className="pt-4 pb-8 font-serif text-[18px] leading-[1.75]"
-            />
-          </article>
+          <Suspense fallback={<SharedNoteSkeleton />}>
+            <SharedNote params={params} />
+          </Suspense>
         </PageContainer>
       </main>
 
@@ -132,6 +115,48 @@ export default async function SharedNotePage({
           Shared from a private journal. Only people with this link can read it.
         </div>
       </footer>
+    </>
+  );
+}
+
+async function SharedNote({ params }: Pick<PageProps<"/share/[token]">, "params">) {
+  const { token } = await params;
+  const note = await loadSharedNote(token);
+
+  if (!note) notFound();
+
+  // Seeds the dateline's reader zone. Best-effort, and only until the browser
+  // answers — see SharedDateline.
+  const { zone } = await readerCalendarFromCookie();
+
+  // The read-only twin of the editor: the note document schema's types, bound
+  // to the `*Static` components instead of the React ones.
+  const editor = createNoteStaticEditor(note.content);
+
+  return (
+    <ReaderZoneProvider initialZone={zone}>
+      <article>
+        <SharedDateline createdAt={note.createdAt.toISOString()} />
+        {/* The same face and measure the writer saw, so a shared entry reads
+            as the thing that was written rather than a quotation of it. */}
+        <h1 className="font-serif text-[36px] leading-tight tracking-tight text-balance">
+          {note.title ?? "Untitled"}
+        </h1>
+        <EditorStatic
+          editor={editor}
+          className="pt-4 pb-8 font-serif text-[18px] leading-[1.75]"
+        />
+      </article>
     </ReaderZoneProvider>
+  );
+}
+
+function SharedNoteSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-4 w-32" />
+      <Skeleton className="h-10 w-3/4" />
+      <Skeleton className="h-40 w-full" />
+    </div>
   );
 }

@@ -6,7 +6,7 @@ import type { CalendarNote } from "@/components/calendar/note-event";
 import { TagFilterBar } from "@/components/calendar/tag-filter-bar";
 import { TimeGridView } from "@/components/calendar/time-grid-view";
 import { EmptyState } from "@/components/empty-state";
-import { useReaderZone } from "@/components/reader-zone";
+import { useReaderToday, useReaderZone } from "@/components/reader-zone";
 import {
   DAY_KEY,
   rangeKeys,
@@ -63,7 +63,8 @@ export const JournalCalendar = ({ journalId }: { journalId: string }) => {
   // From the reader-zone provider, never from the browser directly: during the
   // server render the browser's answer would be the Node process's zone, and
   // the first paint would disagree with the server prefetch.
-  const { zone: timeZone, today } = useReaderZone();
+  const { zone: timeZone } = useReaderZone();
+  const today = useReaderToday();
 
   const view = resolveView(searchParams.get("view"));
   const selectedKey = resolveDayKey(searchParams.get("date"), today);

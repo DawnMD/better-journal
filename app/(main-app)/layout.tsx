@@ -1,7 +1,6 @@
 import { ReaderZoneProvider } from "@/components/reader-zone";
 import { SearchPalette } from "@/components/search-palette";
 import { AppTopbar } from "@/components/shell/app-topbar";
-import { auth } from "@clerk/nextjs/server";
 
 /**
  * The signed-in shell.
@@ -9,14 +8,13 @@ import { auth } from "@clerk/nextjs/server";
  * Three elements, and no chrome that owns width. Each page sets its own measure
  * with `PageContainer` — a reading column for the editor, a wide one for the
  * calendar — which is the freedom a fixed sidebar could not give it.
+ *
+ * Part of the static App Shell, so it never reads the request: no session, no
+ * cookie. Every page under it checks the session itself with `auth.protect()`,
+ * inside its own Suspense boundary. The shell holds no user data, so a signed-out
+ * visitor who briefly sees it before the redirect has seen nothing of anyone's.
  */
-export default async function MainLayout({ children }: LayoutProps<"/">) {
-  // Checked here, before anything streams, so a signed-out visitor gets a real
-  // redirect to sign-in rather than a loading shell that redirects afterwards.
-  // Every page under this layout checks again: a layout does not always
-  // re-render when its page does, so it cannot be the only gate.
-  await auth.protect();
-
+export default function MainLayout({ children }: LayoutProps<"/">) {
   return (
     // Seeded with UTC rather than the `tz` cookie: the shell has no use for it.
     // It only reads the reader zone in event handlers, after hydration, when

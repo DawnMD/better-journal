@@ -129,8 +129,6 @@ function formatDateTimeInZone(date: Date, zone: string): string {
 export type ReaderZone = {
   /** The reader zone, as an IANA name. */
   readonly zone: string;
-  /** The reader's calendar day (`yyyy-MM-dd`) right now. */
-  readonly today: string;
   /** `"Sun 2 Aug 2026"`, on the reader's calendar. */
   formatDay(date: Date): string;
   /** `"2 Aug 2026 at 9:52 AM"`, on the reader's wall clock. */
@@ -169,12 +167,8 @@ export function ReaderZoneProvider({
 
   const zone = useSyncExternalStore(noSubscribe, browserZone, () => seed);
 
-  const readToday = () => dayKeyInTimeZone(new Date(), zone);
-  const today = useSyncExternalStore(subscribeToMinute, readToday, readToday);
-
   const value: ReaderZone = {
     zone,
-    today,
     formatDay: (date) => formatDayInZone(date, zone),
     formatDateTime: (date) => formatDateTimeInZone(date, zone),
   };
@@ -193,6 +187,22 @@ export function useReaderZone(): ReaderZone {
   }
 
   return readerZone;
+}
+
+/**
+ * The reader's calendar day (`yyyy-MM-dd`) right now, kept current overnight.
+ *
+ * A hook of its own rather than a field on `useReaderZone`, so only components
+ * that print today read the clock. The signed-in shell's provider is prerendered
+ * into the static App Shell, where a clock read would freeze today at build time
+ * (and Next refuses one). The components that do call this render inside a
+ * page's Suspense boundary, at request time.
+ */
+export function useReaderToday(): string {
+  const { zone } = useReaderZone();
+
+  const readToday = () => dayKeyInTimeZone(new Date(), zone);
+  return useSyncExternalStore(subscribeToMinute, readToday, readToday);
 }
 
 /**

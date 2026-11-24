@@ -21,6 +21,7 @@ import {
   TagsIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
 /**
  * The front door.
@@ -43,7 +44,19 @@ export const metadata: Metadata = {
     "A rich-text journal with autosave, full-text search across every entry, a calendar of what you wrote when, and a dashboard of streaks and word counts.",
 };
 
-export default async function HomePage() {
+export default function HomePage() {
+  // Every button on this page depends on the session, and a "Get started" that
+  // swaps for "Open your journal" is the thing this page avoids. So the whole
+  // page waits on the session, which Clerk checks locally from the cookie,
+  // rather than putting a static shell in front of it.
+  return (
+    <Suspense>
+      <Home />
+    </Suspense>
+  );
+}
+
+async function Home() {
   const { userId } = await auth();
   const signedIn = userId !== null;
 

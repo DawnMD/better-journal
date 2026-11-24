@@ -1,4 +1,8 @@
-import { ReaderZoneProvider, useReaderZone } from "@/components/reader-zone";
+import {
+  ReaderZoneProvider,
+  useReaderToday,
+  useReaderZone,
+} from "@/components/reader-zone";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,7 +21,8 @@ const EARLY_MORNING_IST = new Date("2026-07-29T20:30:00Z");
 
 /** Prints what the hook answers, so the rendered string can be asserted on. */
 function Probe() {
-  const { zone, today, formatDay } = useReaderZone();
+  const { zone, formatDay } = useReaderZone();
+  const today = useReaderToday();
   return <p>{`${zone}|${today}|${formatDay(EARLY_MORNING_IST)}`}</p>;
 }
 
@@ -58,6 +63,32 @@ describe("the reader-zone provider on the server", () => {
     );
 
     expect(html).toContain("UTC|2026-07-29|Wed 29 Jul 2026");
+  });
+
+  it("does not read the clock for a subtree that only needs the zone", () => {
+    // The signed-in shell mounts a provider in its layout, which is prerendered
+    // into the static App Shell. Next refuses `new Date()` there: today would be
+    // frozen at build time. Only components that print today may read it.
+    function ZoneOnly() {
+      return <p>{useReaderZone().zone}</p>;
+    }
+    const dateSpy = vi
+      .spyOn(globalThis, "Date")
+      .mockImplementation(function () {
+        throw new Error("read the clock");
+      });
+
+    try {
+      const html = renderToString(
+        <ReaderZoneProvider initialZone="UTC">
+          <ZoneOnly />
+        </ReaderZoneProvider>,
+      );
+
+      expect(html).toContain("UTC");
+    } finally {
+      dateSpy.mockRestore();
+    }
   });
 
   it("refuses to answer outside a provider rather than guessing a zone", () => {
