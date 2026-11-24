@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readerCalendar } from "@/server/lib/reader-calendar";
 import { callerFor, makeJournal, makeNote, USER_A, USER_B } from "../helpers/db";
 
 /**
@@ -354,5 +355,61 @@ describe("getWordCounts", () => {
     });
 
     expect(result.points.every((p) => p.words === 0)).toBe(true);
+  });
+});
+
+describe("in a reader zone ahead of UTC", () => {
+  // Two notes on one UTC day that straddle midnight in IST: one late in the
+  // reader's yesterday, one at 01:00 on the reader's today. Built from the
+  // reader calendar rather than the server clock, so the IST days are exact
+  // whatever hour the suite runs at.
+  const ist = readerCalendar("Asia/Kolkata");
+  const today = ist.today();
+  const yesterday = ist.dayOf(new Date(ist.dayWindow(today).start.getTime() - 1));
+  const HOUR = 3_600_000;
+
+  async function seedAcrossIstMidnight() {
+    const journal = await makeJournal(USER_A);
+    const late = new Date(ist.dayWindow(yesterday).start.getTime() + 20 * HOUR);
+    const early = new Date(ist.dayWindow(today).start.getTime() + 1 * HOUR);
+
+    // Same UTC day, so a UTC bucketing would see one day, not two.
+    expect(late.toISOString().slice(0, 10)).toBe(early.toISOString().slice(0, 10));
+
+    await noteAt(journal.id, late.toISOString(), "late evening");
+    await noteAt(journal.id, early.toISOString(), "just after midnight here");
+  }
+
+  it("counts the note just after midnight on the reader's calendar day everywhere", async () => {
+    await seedAcrossIstMidnight();
+    const a = callerFor(USER_A);
+    const timeZone = "Asia/Kolkata";
+
+    const totals = await a.statsRouter.getTotals({ timeZone });
+    expect(totals.daysActive).toBe(2);
+
+    const streak = await a.statsRouter.getStreak({ timeZone });
+    expect(streak).toEqual({ current: 2, longest: 2 });
+
+    const activity = await a.statsRouter.getActivity({
+      year: Number(today.slice(0, 4)),
+      timeZone,
+    });
+    expect(activity.byDay[today]).toEqual({ count: 1, words: 4 });
+    if (yesterday.slice(0, 4) === today.slice(0, 4)) {
+      expect(activity.byDay[yesterday]).toEqual({ count: 1, words: 2 });
+    }
+
+    const words = await a.statsRouter.getWordCounts({ range: "30d", timeZone });
+    expect(words.points.at(-1)).toEqual({ bucket: today, words: 4, notes: 1 });
+    expect(words.points.at(-2)).toEqual({ bucket: yesterday, words: 2, notes: 1 });
+  });
+
+  it("would put both notes on one day for a UTC reader", async () => {
+    await seedAcrossIstMidnight();
+    const a = callerFor(USER_A);
+
+    expect((await a.statsRouter.getTotals({ timeZone: "UTC" })).daysActive).toBe(1);
+    expect((await a.statsRouter.getStreak({ timeZone: "UTC" })).longest).toBe(1);
   });
 });

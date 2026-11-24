@@ -74,7 +74,7 @@ export const notesRouter = {
       // by Postgres in UTC, which is right for storage — but a title is read, and
       // on Vercel the server is UTC, so a note started at 09:52 IST came back
       // titled "at 4:22 AM". TZDate fixes the wall clock to `zone` and date-fns
-      // v4 formats through it, the same trick `server/lib/day-window.ts` uses.
+      // v4 formats through it, the same trick `server/lib/reader-calendar.ts` uses.
       const zone = resolveTimeZone(input.timeZone);
       const defaultTitle = format(
         new TZDate(Date.now(), zone),

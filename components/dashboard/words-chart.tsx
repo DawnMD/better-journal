@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/chart";
 import { formatDate, formatNumber } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
-import { clientTimeZone } from "@/lib/timezone";
+import { useReaderZone } from "@/components/reader-zone";
 import { cn } from "@/lib/utils";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { TableIcon } from "lucide-react";
@@ -76,7 +76,7 @@ function formatBucket(bucket: string, isMonthly: boolean): string {
 }
 
 export const WordsChart = () => {
-  const timeZone = clientTimeZone();
+  const { zone: timeZone } = useReaderZone();
   const [range, setRange] = useState<Range>("90d");
   const [showTable, setShowTable] = useState(false);
 

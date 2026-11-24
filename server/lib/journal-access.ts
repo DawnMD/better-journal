@@ -56,6 +56,11 @@ export async function listLiveJournals(ctx: JournalAccessContext) {
   });
 }
 
+/** How many live journals the caller has — the dashboard's journal tile. */
+export async function countLiveJournals(ctx: JournalAccessContext) {
+  return ctx.db.journal.count({ where: liveJournalWhere(ctx.userId) });
+}
+
 /** The caller's trashed journals, each with the titles of the notes it holds. */
 export async function listTrashedJournals(ctx: JournalAccessContext) {
   return ctx.db.journal.findMany({
