@@ -13,7 +13,7 @@ export default defineConfig({
     environment: "node",
     globalSetup: ["./tests/global-setup.ts"],
     setupFiles: ["./tests/setup.ts"],
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.{ts,tsx}"],
     // The router tests share one Postgres database and TRUNCATE between cases,
     // so they must not run concurrently with each other.
     fileParallelism: false,

@@ -5,8 +5,8 @@ import { MonthView } from "@/components/calendar/month-view";
 import type { CalendarNote } from "@/components/calendar/note-event";
 import { TagFilterBar } from "@/components/calendar/tag-filter-bar";
 import { TimeGridView } from "@/components/calendar/time-grid-view";
-import { useNowMinutes, useToday } from "@/components/calendar/use-today";
 import { EmptyState } from "@/components/empty-state";
+import { useReaderZone } from "@/components/reader-zone";
 import {
   DAY_KEY,
   rangeKeys,
@@ -19,7 +19,6 @@ import {
 } from "@/lib/calendar";
 import { orpc } from "@/lib/orpc.query";
 import { hasAllTags, resolveTagIds, serializeTagIds } from "@/lib/tags";
-import { clientTimeZone } from "@/lib/timezone";
 import {
   useMutation,
   useQuery,
@@ -56,21 +55,15 @@ const EMPTY_FILTERED_MESSAGE: Record<CalendarView, string> = {
  * string without remounting, move the calendar; it also makes a day view
  * linkable, which the old badge-plus-panel arrangement never was.
  */
-export const JournalCalendar = ({
-  journalId,
-  serverToday,
-}: {
-  journalId: string;
-  /** Today in the `tz`-cookie zone, so the first paint matches what hydrates. */
-  serverToday: string;
-}) => {
+export const JournalCalendar = ({ journalId }: { journalId: string }) => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  const timeZone = clientTimeZone();
-  const today = useToday(serverToday);
-  const nowMinutes = useNowMinutes();
+  // From the reader-zone provider, never from the browser directly: during the
+  // server render the browser's answer would be the Node process's zone, and
+  // the first paint would disagree with the server prefetch.
+  const { zone: timeZone, today } = useReaderZone();
 
   const view = resolveView(searchParams.get("view"));
   const selectedKey = resolveDayKey(searchParams.get("date"), today);
@@ -219,7 +212,6 @@ export const JournalCalendar = ({
           notesByDay={notesByDay}
           selectedKey={selectedKey}
           todayKey={today}
-          nowMinutes={nowMinutes}
           journalId={journalId}
           onSelectDay={(day) => navigate({ date: day })}
         />
