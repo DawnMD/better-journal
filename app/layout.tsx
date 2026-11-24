@@ -1,5 +1,6 @@
 import Providers from "@/components/providers";
 import { ReaderZoneCookieSync } from "@/components/reader-zone";
+import { SpeedInsights } from "@/components/speed-insights";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
@@ -72,6 +73,7 @@ export default function RootLayout({
             <Toaster />
           </Providers>
         </NextThemesProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
