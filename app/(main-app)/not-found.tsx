@@ -1,39 +1,13 @@
-import { EmptyState } from "@/components/empty-state";
-import { Button } from "@/components/ui/button";
-import { HomeIcon, Trash2Icon } from "lucide-react";
-import Link from "next/link";
+import { JournalNotFound } from "@/components/journal-not-found";
 
 /**
  * 404 inside the signed-in shell — in practice a journal id that no longer
- * resolves: trashed, deleted, or never the caller's to begin with. The routers
- * answer all three the same way on purpose (see server/lib/note-access.ts), so
- * this page cannot say which, and should not try.
+ * resolves. The view is shared with the journal's error boundary, which shows
+ * it when the miss is discovered by the client query instead of the server page.
  *
  * Nested under (main-app) so the top bar and the ⌘K palette stay mounted: a dead
  * link should cost you the pane, not the app.
  */
 export default function MainAppNotFound() {
-  return (
-    <EmptyState
-      eyebrow="404"
-      title="We couldn't find that"
-      description="This journal may have been deleted or moved to trash, or the link may be wrong. Your other entries are unaffected."
-      actions={
-        <>
-          <Button nativeButton={false} render={<Link href="/dashboard" />}>
-            <HomeIcon />
-            Go to dashboard
-          </Button>
-          <Button
-            nativeButton={false}
-            variant="outline"
-            render={<Link href="/trash" />}
-          >
-            <Trash2Icon />
-            Check trash
-          </Button>
-        </>
-      }
-    />
-  );
+  return <JournalNotFound />;
 }
