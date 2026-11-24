@@ -4,9 +4,11 @@ import {
   deleteNote,
   findNote,
   liveNoteWhere,
+  ownedNoteSql,
   ownedNoteWhere,
   updateNote,
 } from "@/server/lib/note-access";
+import { Prisma } from "@/prisma/generated/prisma/client";
 import { makeJournal, makeNote, testDb, USER_A, USER_B } from "../helpers/db";
 
 /**
@@ -168,5 +170,21 @@ describe("note access — predicates for list queries", () => {
     expect(found.map((note) => note.id).sort()).toEqual(
       [noteA.id, noteB.id].sort(),
     );
+  });
+
+  it("ownedNoteSql is the same rule for raw SQL", async () => {
+    const live = await makeJournal(USER_A);
+    const trashed = await makeJournal(USER_A, { trash: true });
+    const foreign = await makeJournal(USER_B);
+    const mine = await makeNote(live.id);
+    await makeNote(trashed.id);
+    await makeNote(foreign.id);
+
+    const found = await testDb.$queryRaw<{ id: string }[]>`
+      SELECT n."id" FROM "Note" n
+      WHERE ${ownedNoteSql(USER_A, Prisma.raw(`n."journalId"`))}
+    `;
+
+    expect(found.map((note) => note.id)).toEqual([mine.id]);
   });
 });

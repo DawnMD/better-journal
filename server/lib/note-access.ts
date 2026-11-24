@@ -1,5 +1,5 @@
 import { ORPCError } from "@orpc/server";
-import type { Prisma, PrismaClient } from "@/prisma/generated/prisma/client";
+import { Prisma, type PrismaClient } from "@/prisma/generated/prisma/client";
 
 /**
  * Note access: the one place that says which notes a caller may reach.
@@ -33,6 +33,18 @@ export function ownedNoteWhere(userId: string) {
   return {
     journal: { userId, trash: false },
   } satisfies Prisma.NoteWhereInput;
+}
+
+/**
+ * `ownedNoteWhere` for raw SQL: the note whose journal id is `journalId` is an
+ * owned note of a live journal. Self-contained, so it does not depend on the
+ * caller having joined "Journal" under any particular alias.
+ */
+export function ownedNoteSql(userId: string, journalId: Prisma.Sql): Prisma.Sql {
+  return Prisma.sql`${journalId} IN (
+    SELECT "id" FROM "Journal"
+    WHERE "userId" = ${userId} AND "trash" = false
+  )`;
 }
 
 /**

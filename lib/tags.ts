@@ -11,9 +11,9 @@
 export const MAX_TAG_NAME = 32;
 
 /**
- * How many tags a filter may name at once. Matches the `.max(10)` on
- * `getNotesByTags` and `searchRouter.search`, so a URL that survives
- * `resolveTagIds` is always one the server will also accept.
+ * How many tags a filter may name at once. `searchRouter.search` caps its
+ * input with this same constant, so a URL that survives `resolveTagIds` is
+ * always one the server will also accept.
  */
 export const MAX_TAG_FILTER = 10;
 
@@ -67,7 +67,8 @@ export function serializeTagIds(tagIds: string[]): string {
 }
 
 /**
- * AND semantics, matching `getNotesByTags` and the search router's tag clause:
+ * AND semantics, matching `hasEveryTagSql` in server/lib/tags.ts (the search
+ * router's tag clause):
  * a note passes only when it carries *every* selected tag.
  *
  * This is the whole calendar filter. It runs over the already-fetched range so

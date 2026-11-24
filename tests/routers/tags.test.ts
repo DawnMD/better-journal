@@ -154,50 +154,6 @@ describe("tags are scoped per user", () => {
   });
 });
 
-describe("filtering notes by tag", () => {
-  it("requires every requested tag to be present (AND, not OR)", async () => {
-    const a = callerFor(USER_A);
-    const journal = await makeJournal(USER_A);
-
-    const both = await makeNote(journal.id, { title: "both" });
-    const onlyWork = await makeNote(journal.id, { title: "only work" });
-
-    await a.tagRouter.addTagToNote({ noteId: both.id, name: "work" });
-    await a.tagRouter.addTagToNote({ noteId: both.id, name: "urgent" });
-    await a.tagRouter.addTagToNote({ noteId: onlyWork.id, name: "work" });
-
-    const tags = await a.tagRouter.getAllTags();
-    const workId = tags.find((t) => t.name === "work")!.id;
-    const urgentId = tags.find((t) => t.name === "urgent")!.id;
-
-    const onlyWorkResults = await a.tagRouter.getNotesByTags({
-      journalId: journal.id,
-      tagIds: [workId],
-    });
-    expect(onlyWorkResults.map((n) => n.title).sort()).toEqual([
-      "both",
-      "only work",
-    ]);
-
-    const bothResults = await a.tagRouter.getNotesByTags({
-      journalId: journal.id,
-      tagIds: [workId, urgentId],
-    });
-    expect(bothResults.map((n) => n.title)).toEqual(["both"]);
-  });
-
-  it("refuses to filter another user's journal", async () => {
-    const journalA = await makeJournal(USER_A);
-
-    await expect(
-      callerFor(USER_B).tagRouter.getNotesByTags({
-        journalId: journalA.id,
-        tagIds: ["anything"],
-      }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  });
-});
-
 describe("renameTag", () => {
   it("moves a note that already carries both tags without duplicating it", async () => {
     // The load-bearing case for the merge, and the reason it is written first:
