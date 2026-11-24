@@ -39,7 +39,7 @@ export const NoteTitle = ({
   const { mutate: renameNote, isPending } = useMutation(
     orpc.notesRouter.renameNote.mutationOptions({
       // The cached note and every calendar range are patched centrally, from
-      // lib/query/note-cache-effects.ts.
+      // lib/query/cache-effects.ts.
       onSuccess: () => {
         setEdit(null);
       },

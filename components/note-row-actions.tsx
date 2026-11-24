@@ -30,7 +30,7 @@ import { toast } from "sonner";
  *
  * Only toasts and closes its dialog: the cache effects of a rename or delete
  * (every cached calendar range, the note, search, stats) are applied centrally
- * from lib/query/note-cache-effects.ts, so this needs no query coordinates.
+ * from lib/query/cache-effects.ts, so this needs no query coordinates.
  */
 export const NoteRowActions = ({
   noteId,

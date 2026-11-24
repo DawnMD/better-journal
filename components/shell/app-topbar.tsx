@@ -195,7 +195,7 @@ function NewEntryButton() {
   const { mutate: createNote, isPending } = useMutation(
     orpc.notesRouter.createNote.mutationOptions({
       // Every cached calendar range is invalidated centrally, from
-      // lib/query/note-cache-effects.ts.
+      // lib/query/cache-effects.ts.
       onSuccess: ({ id: noteId }, variables) => {
         router.push(`/journal/${variables.journalId}/${noteId}`);
       },

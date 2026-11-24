@@ -24,7 +24,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/lib/orpc.query";
 import { cn } from "@/lib/utils";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CheckIcon,
   ChevronsUpDownIcon,
@@ -53,7 +53,6 @@ import { toast } from "sonner";
 export const JournalSwitcher = () => {
   const params = useParams<{ journalId?: string }>();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -64,13 +63,9 @@ export const JournalSwitcher = () => {
 
   const { mutate: moveJournalToTrash } = useMutation(
     orpc.journalRouter.moveToTrash.mutationOptions({
+      // Lists, calendar, notes, search and stats are updated centrally, from
+      // lib/query/cache-effects.ts.
       onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: orpc.journalRouter.getAllJournal.queryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: orpc.journalRouter.getTrashedJournal.queryKey(),
-        });
         toast.success("Moved to trash");
       },
       onError: (data) => {

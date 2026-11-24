@@ -5,19 +5,20 @@ import {
   environmentManager,
 } from "@tanstack/react-query";
 import { isRequestError } from "@/lib/orpc.errors";
-import { applyNoteCacheEffects } from "@/lib/query/note-cache-effects";
+import { applyCacheEffects } from "@/lib/query/cache-effects";
 import { serializer } from "@/lib/serializer";
 
 function makeQueryClient() {
   const queryClient: QueryClient = new QueryClient({
-    // Note mutations' cache effects are applied here, once, from the table in
-    // note-cache-effects.ts, rather than by each component that fires them.
+    // Mutations' cache effects are applied here, once, from the table in
+    // cache-effects.ts, rather than by each component that fires them.
     mutationCache: new MutationCache({
-      onSuccess: (data, _variables, _onMutateResult, mutation) => {
-        applyNoteCacheEffects(
+      onSuccess: (data, variables, _onMutateResult, mutation) => {
+        applyCacheEffects(
           queryClient,
           mutation.options.mutationKey,
           data,
+          variables,
         );
       },
     }),

@@ -1,6 +1,5 @@
 "use client";
 
-import { invalidateAfterTagChange } from "@/components/tags/tag-cache";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -71,26 +70,12 @@ export const TagRowActions = ({
 
   const { mutate: renameTag, isPending: isRenaming } = useMutation(
     orpc.tagRouter.renameTag.mutationOptions({
+      // The tag list is patched (or, after a merge, refetched) centrally, from
+      // lib/query/cache-effects.ts.
       onSuccess: (result) => {
-        if (result.mergedFrom) {
-          // Two rows became one, with note counts that depend on how much the
-          // two tags overlapped. Reconstructing that here would be a second,
-          // client-side implementation of the merge — so refetch instead.
-          invalidateAfterTagChange(queryClient);
-          toast.success(`Merged into "${result.name}"`);
-        } else {
-          queryClient.setQueryData(allTagsKey, (prev) =>
-            prev
-              ?.map((tag) =>
-                tag.id === result.id ? { ...tag, name: result.name } : tag,
-              )
-              // Re-sorted, because the list is name-ordered and the rename just
-              // moved this row. Skipping this leaves it stranded until refetch.
-              .sort((a, b) => a.name.localeCompare(b.name)),
-          );
-          invalidateAfterTagChange(queryClient, { allTags: false });
-          toast.success("Tag renamed");
-        }
+        toast.success(
+          result.mergedFrom ? `Merged into "${result.name}"` : "Tag renamed",
+        );
 
         setRenameOpen(false);
         setCollision(null);
@@ -118,11 +103,7 @@ export const TagRowActions = ({
 
   const { mutate: deleteTag, isPending: isDeleting } = useMutation(
     orpc.tagRouter.deleteTag.mutationOptions({
-      onSuccess: ({ id }) => {
-        queryClient.setQueryData(allTagsKey, (prev) =>
-          prev?.filter((tag) => tag.id !== id),
-        );
-        invalidateAfterTagChange(queryClient, { allTags: false });
+      onSuccess: () => {
         toast.success("Tag deleted");
         setDeleteOpen(false);
       },
