@@ -164,7 +164,7 @@ export const JournalCalendar = ({
   const { mutate: createNote, isPending: isCreating } = useMutation(
     orpc.notesRouter.createNote.mutationOptions({
       // Every cached range is invalidated centrally, from
-      // lib/query/note-cache-effects.ts.
+      // lib/query/cache-effects.ts.
       onSuccess: ({ id: noteId }) => {
         router.push(`/journal/${journalId}/${noteId}`);
       },

@@ -1,11 +1,8 @@
-import {
-  MutationObserver,
-  QueryObserver,
-  type QueryClient,
-} from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
+import { run, state, watch } from "@/tests/helpers/cache-effects";
 
 /**
  * Note cache effects, exercised the way the app triggers them: a note mutation
@@ -93,41 +90,6 @@ function seededClient() {
   });
 
   return queryClient;
-}
-
-/** Runs a mutation through the query client as `useMutation` would. */
-async function run<TData, TVariables>(
-  queryClient: QueryClient,
-  options: { mutationKey?: readonly unknown[] },
-  variables: TVariables,
-  response: TData,
-) {
-  const observer = new MutationObserver<TData, Error, TVariables>(queryClient, {
-    ...options,
-    mutationFn: async () => response,
-  });
-  await observer.mutate(variables);
-}
-
-const state = (queryClient: QueryClient, queryKey: readonly unknown[]) =>
-  queryClient.getQueryState(queryKey);
-
-/**
- * Mounts an observer on a seeded entry, as an open screen would, and counts the
- * network requests it makes — so "staled without refetching" is observable.
- */
-function watch(queryClient: QueryClient, queryKey: readonly unknown[]) {
-  let fetches = 0;
-  const observer = new QueryObserver(queryClient, {
-    queryKey,
-    queryFn: async () => {
-      fetches += 1;
-      return queryClient.getQueryData(queryKey) ?? null;
-    },
-  });
-  observer.subscribe(() => {});
-
-  return { fetches: () => fetches };
 }
 
 describe("renameNote cache effects", () => {

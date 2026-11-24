@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupTextarea } from "@/components/ui/input-group";
 import { orpc } from "@/lib/orpc.query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ const formSchema = z.object({
  * be rebuilt. Now every entry point (the journal switcher, the empty state)
  * renders whatever button suits it and drives `open` from the outside.
  *
- * The form itself — schema, resolver, fields, invalidation — is unchanged.
+ * The form itself — schema, resolver, fields — is unchanged.
  */
 export const CreateJournalDialog = ({
   open,
@@ -52,7 +52,6 @@ export const CreateJournalDialog = ({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
-  const queryClient = useQueryClient();
   const router = useRouter();
 
   const { mutate, isPending } = useMutation(
@@ -60,9 +59,8 @@ export const CreateJournalDialog = ({
       // `createJournal` outputs the new id as a bare string.
       onSuccess: (journalId) => {
         form.reset();
-        queryClient.invalidateQueries({
-          queryKey: orpc.journalRouter.getAllJournal.queryKey(),
-        });
+        // The live journal list is invalidated centrally, from
+        // lib/query/cache-effects.ts.
         toast.success("Journal created successfully");
         onOpenChange(false);
         // Straight into the new journal. Without a sidebar list there is no

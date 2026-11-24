@@ -72,7 +72,7 @@ export const NoteEditorContent = ({
   });
 
   // The cached note's content is patched centrally, from
-  // lib/query/note-cache-effects.ts, along with search and stats.
+  // lib/query/cache-effects.ts, along with search and stats.
   const { mutateAsync: saveNote } = useMutation(
     orpc.notesRouter.saveNote.mutationOptions(),
   );

@@ -7,34 +7,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { orpc } from "@/lib/orpc.query";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { MoreHorizontalIcon } from "lucide-react";
 import { toast } from "sonner";
 
 export const TrashDropdownActions = ({ id }: { id: string }) => {
-  const queryClient = useQueryClient();
   const { mutate: deletePermanently } = useMutation(
     orpc.journalRouter.deletePermanently.mutationOptions({
-      onSuccess: () => {
-        toast.success("Deleted");
-        queryClient.invalidateQueries({
-          queryKey: orpc.journalRouter.getTrashedJournal.queryKey(),
-        });
-      },
+      // Cache effects for both are applied centrally, from
+      // lib/query/cache-effects.ts.
+      onSuccess: () => toast.success("Deleted"),
     }),
   );
 
   const { mutate: restoreJournal } = useMutation(
     orpc.journalRouter.removeFromTrash.mutationOptions({
-      onSuccess: () => {
-        toast.success("Restored");
-        queryClient.invalidateQueries({
-          queryKey: orpc.journalRouter.getTrashedJournal.queryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: orpc.journalRouter.getAllJournal.queryKey(),
-        });
-      },
+      onSuccess: () => toast.success("Restored"),
     }),
   );
   return (

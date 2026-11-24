@@ -1,6 +1,5 @@
 "use client";
 
-import { invalidateAfterTagChange } from "@/components/tags/tag-cache";
 import { TagChip } from "@/components/tags/tag-chip";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +18,7 @@ import {
 import { orpc } from "@/lib/orpc.query";
 import { MAX_TAG_NAME, normalizeTagName } from "@/lib/tags";
 import { cn } from "@/lib/utils";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -33,7 +32,6 @@ import { toast } from "sonner";
  * combobox can offer both from one list without the two paths ever diverging.
  */
 export const NoteTags = ({ noteId }: { noteId: string }) => {
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -47,22 +45,11 @@ export const NoteTags = ({ noteId }: { noteId: string }) => {
 
   const { data: allTags } = useQuery(orpc.tagRouter.getAllTags.queryOptions());
 
-  const tagsKey = orpc.tagRouter.getTagsForNote.queryKey({
-    input: { noteId },
-  });
-
-  /** Both mutations return this note's full tag list, so both patch it the same way. */
-  const onTagsChanged = (next: { id: string; name: string }[]) => {
-    queryClient.setQueryData(tagsKey, next);
-    // Patched above, so getTagsForNote is excluded from the fan-out. getAllTags
-    // is not: counts moved, and a brand-new tag row may have appeared.
-    invalidateAfterTagChange(queryClient, { tagsForNote: false });
-  };
-
   const { mutate: addTag, isPending: isAdding } = useMutation(
     orpc.tagRouter.addTagToNote.mutationOptions({
-      onSuccess: (next) => {
-        onTagsChanged(next);
+      // This note's tags are patched from the response, and the rest of the
+      // fan-out applied, centrally from lib/query/cache-effects.ts.
+      onSuccess: () => {
         setDraft("");
         setOpen(false);
       },
@@ -72,7 +59,6 @@ export const NoteTags = ({ noteId }: { noteId: string }) => {
 
   const { mutate: removeTag, isPending: isRemoving } = useMutation(
     orpc.tagRouter.removeTagFromNote.mutationOptions({
-      onSuccess: onTagsChanged,
       onError: (error) => toast.error(error.message),
     }),
   );
