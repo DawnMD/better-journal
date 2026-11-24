@@ -2,6 +2,7 @@ import { HydrateClient } from "@/components/hydration";
 import { JournalData } from "@/components/journal-data";
 import { PageContainer } from "@/components/shell/page-container";
 import { rangeKeys, resolveDayKey, resolveView } from "@/lib/calendar";
+import { isNotFoundError } from "@/lib/orpc.errors";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
 import { serverTimeZone } from "@/lib/timezone.server";
@@ -63,15 +64,22 @@ export default async function JournalIdPage({
   // Awaited, unlike the one above: an id that does not resolve has to become a
   // real 404 — status code and all — here on the server. Prefetching it instead
   // would hand the browser a page that only discovers the journal is gone once
-  // the client re-runs the query, by which point the best it can do is an error
-  // boundary. The result is still cached, so the client query below is free.
-  const journal = await queryClient.fetchQuery(
-    orpc.journalRouter.getJournalById.queryOptions({
-      input: { id: journalId },
-    }),
-  );
+  // the client re-runs the query. The result is still cached, so the client
+  // query below is free.
+  try {
+    await queryClient.fetchQuery(
+      orpc.journalRouter.getJournalById.queryOptions({
+        input: { id: journalId },
+      }),
+    );
+  } catch (error) {
+    // getJournalById throws NOT_FOUND for a missing journal, someone else's, or
+    // one in the trash — wrong addresses, not failures.
+    if (isNotFoundError(error)) notFound();
 
-  if (!journal) notFound();
+    // Anything else is a genuine error and belongs to [journalId]/error.tsx.
+    throw error;
+  }
 
   // Awaited only now, so the range lands in the dehydrated state rather than
   // racing it. Failure here is not fatal — the client refetches.
