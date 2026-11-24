@@ -4,14 +4,7 @@ import { orpc } from "@/lib/orpc.query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { NoteEditorContent } from "./note-editor-content";
 
-export const NoteEditor = ({
-  noteId,
-  serverTimeZone,
-}: {
-  noteId: string;
-  /** The `tz` cookie's zone, used only until the browser reports its own. */
-  serverTimeZone: string;
-}) => {
+export const NoteEditor = ({ noteId }: { noteId: string }) => {
   // No isError branch: useSuspenseQuery throws on failure, which the
   // [noteId]/error.tsx boundary renders.
   const { data } = useSuspenseQuery(
@@ -24,11 +17,5 @@ export const NoteEditor = ({
 
   // Keyed by note id so switching notes remounts the editor rather than trying
   // to swap Plate's initial value underneath it.
-  return (
-    <NoteEditorContent
-      key={data.id}
-      note={data}
-      serverTimeZone={serverTimeZone}
-    />
-  );
+  return <NoteEditorContent key={data.id} note={data} />;
 };

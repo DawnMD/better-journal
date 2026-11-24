@@ -1,5 +1,5 @@
 import Providers from "@/components/providers";
-import { TimeZoneSync } from "@/components/timezone-sync";
+import { ReaderZoneCookieSync } from "@/components/reader-zone";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
@@ -65,9 +65,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Providers>
-            {/* Publishes the browser's timezone so server prefetches can build
-                the same query keys the client will. Renders nothing. */}
-            <TimeZoneSync />
+            {/* Publishes the reader zone to the `tz` cookie so server pages can
+                seed it and build the query keys the client will. */}
+            <ReaderZoneCookieSync />
             {children}
             <Toaster />
           </Providers>

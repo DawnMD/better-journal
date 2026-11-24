@@ -7,15 +7,15 @@ import { PageContainer } from "@/components/shell/page-container";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
-import { serverTimeZone } from "@/lib/timezone.server";
-import { dayKeyInTimeZone } from "@/lib/timezone";
+import { readerCalendarFromCookie } from "@/server/lib/reader-calendar";
 import { Suspense } from "react";
 
 export default async function DashboardPage() {
-  const timeZone = await serverTimeZone();
+  const calendar = await readerCalendarFromCookie();
+  const timeZone = calendar.zone;
   // The reader's year, not the server's: around New Year they differ, and the
   // heatmap opens on the reader's.
-  const year = Number(dayKeyInTimeZone(new Date(), timeZone).slice(0, 4));
+  const year = Number(calendar.today().slice(0, 4));
   const queryClient = getQueryClient();
 
   Promise.all([

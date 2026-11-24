@@ -1,10 +1,13 @@
 /**
- * Timezone plumbing shared by client and server.
+ * The shared core of the reader calendar (ADR-0001): zone validation and
+ * "which day is this instant on", for the client reader-zone module
+ * (`components/reader-zone.tsx`) and the server reader calendar
+ * (`server/lib/reader-calendar.ts`) alike.
  *
  * Deliberately free of `date-fns` / `@date-fns/tz` imports so it can be pulled
  * into a client component without dragging the tz database into the browser
- * bundle. The actual day-boundary arithmetic lives in
- * `server/lib/reader-calendar.ts`, which builds on this.
+ * bundle. It never reads the browser's zone itself — only the reader-zone
+ * module may do that.
  */
 
 export const DEFAULT_TIME_ZONE = "UTC";
@@ -42,17 +45,6 @@ export function isValidTimeZone(timeZone: string): boolean {
 export function resolveTimeZone(timeZone: string | undefined | null): string {
   if (!timeZone || !isValidTimeZone(timeZone)) return DEFAULT_TIME_ZONE;
   return timeZone;
-}
-
-/** The browser's zone, or UTC where `Intl` cannot say. */
-export function clientTimeZone(): string {
-  try {
-    return (
-      Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIME_ZONE
-    );
-  } catch {
-    return DEFAULT_TIME_ZONE;
-  }
 }
 
 /**

@@ -6,8 +6,7 @@ import { rangeKeys, resolveDayKey, resolveView } from "@/lib/calendar";
 import { isNotFoundError } from "@/lib/orpc.errors";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
-import { serverTimeZone } from "@/lib/timezone.server";
-import { dayKeyInTimeZone } from "@/lib/timezone";
+import { readerCalendarFromCookie } from "@/server/lib/reader-calendar";
 import { parseISO } from "date-fns";
 import { notFound } from "next/navigation";
 
@@ -22,14 +21,15 @@ export default async function JournalIdPage({
   };
 
   // Read from the tz cookie so these prefetches build the same query keys the
-  // client will. See lib/timezone.server.ts for why this is best-effort.
-  const timeZone = await serverTimeZone();
+  // client will. See readerCalendarFromCookie for why this is best-effort.
+  const calendar = await readerCalendarFromCookie();
+  const timeZone = calendar.zone;
 
   // "Today" in the reader's zone rather than the server's. On Vercel the server
   // is UTC, so `new Date()` there would default a reader in Kiritimati to
   // yesterday — a prefetch for the wrong grid, and a first paint the client then
   // has to correct.
-  const today = dayKeyInTimeZone(new Date(), timeZone);
+  const today = calendar.today();
 
   // Both params are narrowed here as well as on the client, so a hand-edited
   // query string opens on today rather than 500ing out of `format`.

@@ -1,6 +1,7 @@
 "use client";
 
 import { CreateJournalDialog } from "@/components/create-journal-dialog";
+import { useReaderZone } from "@/components/reader-zone";
 import { JournalSwitcher } from "@/components/shell/journal-switcher";
 import { SaveIndicator } from "@/components/shell/save-indicator";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -8,7 +9,6 @@ import { openSearchPalette } from "@/components/search-palette";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/lib/orpc.query";
-import { clientTimeZone } from "@/lib/timezone";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeftIcon, PenLineIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
@@ -185,6 +185,9 @@ function NewEntryButton() {
   const params = useParams<{ journalId?: string }>();
   const router = useRouter();
   const [creatingJournal, setCreatingJournal] = useState(false);
+  // Read only on click, after hydration, so the shell's UTC seed never reaches
+  // a request — by then the provider answers with the browser's zone.
+  const { zone } = useReaderZone();
 
   const { data: journals } = useQuery(
     orpc.journalRouter.getAllJournal.queryOptions(),
@@ -210,7 +213,7 @@ function NewEntryButton() {
         className="h-8 gap-1.5 px-2 sm:px-3"
         onClick={() => {
           if (target) {
-            createNote({ journalId: target, timeZone: clientTimeZone() });
+            createNote({ journalId: target, timeZone: zone });
           } else setCreatingJournal(true);
         }}
       >

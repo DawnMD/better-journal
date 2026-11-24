@@ -1,9 +1,10 @@
 import { HydrateClient } from "@/components/hydration";
+import { ReaderZoneProvider } from "@/components/reader-zone";
 import { PageContainer } from "@/components/shell/page-container";
 import { TrashedJournalTable } from "@/components/trash-journal-table";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
-import { serverTimeZone } from "@/lib/timezone.server";
+import { readerCalendarFromCookie } from "@/server/lib/reader-calendar";
 
 export default async function TrashPage() {
   const queryClient = getQueryClient();
@@ -12,15 +13,17 @@ export default async function TrashPage() {
     orpc.journalRouter.getTrashedJournal.queryOptions(),
   );
 
-  // The table dates every trashed note, so it needs a zone. Best-effort from the
-  // `tz` cookie — see lib/timezone.server.ts — and only until the browser answers.
-  const timeZone = await serverTimeZone();
+  // The table dates every trashed note, so its first paint needs the reader
+  // zone. Best-effort from the `tz` cookie, and only until the browser answers.
+  const { zone } = await readerCalendarFromCookie();
 
   return (
     <HydrateClient client={queryClient}>
-      <PageContainer>
-        <TrashedJournalTable serverTimeZone={timeZone} />
-      </PageContainer>
+      <ReaderZoneProvider initialZone={zone}>
+        <PageContainer>
+          <TrashedJournalTable />
+        </PageContainer>
+      </ReaderZoneProvider>
     </HydrateClient>
   );
 }

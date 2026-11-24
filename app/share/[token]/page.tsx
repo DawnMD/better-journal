@@ -7,13 +7,14 @@ import "@/lib/orpc.server";
 
 import { createNoteStaticEditor } from "@/components/editor/note-static-plugins";
 import { ThemeToggle } from "@/components/marketing/theme-toggle";
+import { ReaderZoneProvider } from "@/components/reader-zone";
 import { PageContainer } from "@/components/shell/page-container";
 import { SharedDateline } from "@/components/share/shared-dateline";
 import { Button } from "@/components/ui/button";
 import { EditorStatic } from "@/components/ui/editor-static";
 import { client } from "@/lib/orpc.client";
 import { isNotFoundError } from "@/lib/orpc.errors";
-import { serverTimeZone } from "@/lib/timezone.server";
+import { readerCalendarFromCookie } from "@/server/lib/reader-calendar";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -76,15 +77,16 @@ export default async function SharedNotePage({
 
   if (!note) notFound();
 
-  // Best-effort, and only until the browser answers — see SharedDateline.
-  const timeZone = await serverTimeZone();
+  // Seeds the dateline's reader zone. Best-effort, and only until the browser
+  // answers — see SharedDateline.
+  const { zone } = await readerCalendarFromCookie();
 
   // The read-only twin of the editor: the note document schema's types, bound
   // to the `*Static` components instead of the React ones.
   const editor = createNoteStaticEditor(note.content);
 
   return (
-    <>
+    <ReaderZoneProvider initialZone={zone}>
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md supports-backdrop-blur:bg-background/65">
         <div className="mx-auto flex h-14 w-full max-w-[68ch] items-center gap-3 px-4 sm:px-6">
           <Link
@@ -111,10 +113,7 @@ export default async function SharedNotePage({
       <main className="flex-1">
         <PageContainer width="prose">
           <article>
-            <SharedDateline
-              createdAt={note.createdAt.toISOString()}
-              serverTimeZone={timeZone}
-            />
+            <SharedDateline createdAt={note.createdAt.toISOString()} />
             {/* The same face and measure the writer saw, so a shared entry reads
                 as the thing that was written rather than a quotation of it. */}
             <h1 className="font-serif text-[36px] leading-tight tracking-tight text-balance">
@@ -133,6 +132,6 @@ export default async function SharedNotePage({
           Shared from a private journal. Only people with this link can read it.
         </div>
       </footer>
-    </>
+    </ReaderZoneProvider>
   );
 }
