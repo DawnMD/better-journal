@@ -180,7 +180,7 @@ describe("the calendar grid files notes under the reader's day", () => {
     ]);
   });
 
-  it("refuses a span wider than the grid rather than draining the journal", async () => {
+  it("refuses a span wider than the grid as a bad request rather than draining the journal", async () => {
     const a = callerFor(USER_A);
     const journal = await makeJournal(USER_A);
 
@@ -191,7 +191,27 @@ describe("the calendar grid files notes under the reader's day", () => {
         end: "2026-12-31",
         timeZone: "UTC",
       }),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  // A malformed or backwards range is the caller's mistake, not the server's:
+  // it must answer 400, not fall through to a 500.
+  it.each([
+    ["ends before it starts", "2026-07-11", "2026-07-05"],
+    ["is not a yyyy-MM-dd date", "July 5th", "2026-07-11"],
+    ["names a day that does not exist", "2026-02-31", "2026-03-01"],
+  ])("answers BAD_REQUEST for a range that %s", async (_, start, end) => {
+    const a = callerFor(USER_A);
+    const journal = await makeJournal(USER_A);
+
+    await expect(
+      a.notesRouter.getNotesInRange({
+        journalId: journal.id,
+        start,
+        end,
+        timeZone: "Asia/Kolkata",
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("falls back to UTC for a junk timezone instead of failing", async () => {

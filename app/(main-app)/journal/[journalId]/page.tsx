@@ -1,5 +1,6 @@
 import { HydrateClient } from "@/components/hydration";
 import { JournalData } from "@/components/journal-data";
+import { ReaderZoneProvider } from "@/components/reader-zone";
 import { PageContainer } from "@/components/shell/page-container";
 import { rangeKeys, resolveDayKey, resolveView } from "@/lib/calendar";
 import { isNotFoundError } from "@/lib/orpc.errors";
@@ -87,9 +88,14 @@ export default async function JournalIdPage({
 
   return (
     <HydrateClient client={queryClient}>
-      <PageContainer width="wide">
-        <JournalData id={journalId} serverToday={today} />
-      </PageContainer>
+      {/* Seeded per page, not in the (main-app) layout: a cookie read in a
+          layout would make the whole app shell dynamic. The same zone the
+          prefetch above was keyed on, so the calendar's first paint matches. */}
+      <ReaderZoneProvider initialZone={timeZone}>
+        <PageContainer width="wide">
+          <JournalData id={journalId} />
+        </PageContainer>
+      </ReaderZoneProvider>
     </HydrateClient>
   );
 }

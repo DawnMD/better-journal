@@ -6,14 +6,7 @@ import { isNotFoundError } from "@/lib/orpc.errors";
 import { orpc } from "@/lib/orpc.query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
-export const JournalData = ({
-  id,
-  serverToday,
-}: {
-  id: string;
-  /** Passed through to the calendar; see `useToday` for why the server supplies it. */
-  serverToday: string;
-}) => {
+export const JournalData = ({ id }: { id: string }) => {
   const { data: journal, error } = useSuspenseQuery(
     orpc.journalRouter.getJournalById.queryOptions({
       input: { id },
@@ -44,7 +37,7 @@ export const JournalData = ({
         <ExportJournalButton journalId={id} />
       </header>
 
-      <JournalCalendar journalId={id} serverToday={serverToday} />
+      <JournalCalendar journalId={id} />
     </div>
   );
 };

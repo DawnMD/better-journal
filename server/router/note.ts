@@ -1,7 +1,7 @@
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import z from "zod";
-import { resolveTimeZone, zonedDayAndMinutes } from "@/lib/timezone";
+import { resolveTimeZone } from "@/lib/timezone";
 import { emptyDoc, toPlainText } from "@/lib/plate";
 import {
   assertJournalOwned,
@@ -10,7 +10,7 @@ import {
   ownedNoteWhere,
   updateNote,
 } from "../lib/note-access";
-import { rangeWindow } from "../lib/day-window";
+import { readerZoneInput } from "../lib/reader-calendar";
 import { tagSummary } from "../lib/tags";
 import { protectedProcedure } from "../orpc";
 
@@ -28,6 +28,36 @@ const plateValue = z.array(
  * `resolveTimeZone`, which falls back to UTC rather than throwing.
  */
 const timeZoneInput = z.string().optional();
+
+/**
+ * The calendar's visible grid: a journal, an inclusive run of the reader's
+ * calendar days, and the reader zone they are read in.
+ *
+ * The range is cut into UTC instants here, during validation, so a malformed,
+ * backwards or over-long range answers `BAD_REQUEST` — the caller's mistake —
+ * instead of throwing from the handler, which would surface as a 500.
+ */
+const noteRangeInput = z
+  .object({
+    journalId: z.string(),
+    /** `yyyy-MM-dd`, inclusive. */
+    start: z.iso.date(),
+    /** `yyyy-MM-dd`, inclusive. */
+    end: z.iso.date(),
+    timeZone: readerZoneInput,
+  })
+  .transform(({ journalId, start, end, timeZone: calendar }, ctx) => {
+    try {
+      return { journalId, calendar, window: calendar.rangeWindow(start, end) };
+    } catch (error) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["end"],
+        message: error instanceof Error ? error.message : "Invalid range",
+      });
+      return z.NEVER;
+    }
+  });
 
 export const notesRouter = {
   createNote: protectedProcedure
@@ -72,7 +102,8 @@ export const notesRouter = {
    * it can count them, and a badge that contradicts the cell under it stops
    * being expressible.
    *
-   * Still bounded. `rangeWindow` caps the span at six weeks, which is what keeps
+   * Still bounded. The reader calendar's `rangeWindow` caps the span at six
+   * weeks (an over-long range is a `BAD_REQUEST`), which is what keeps
    * this from degenerating into "load the whole journal" the way the original
    * client-side counting did.
    *
@@ -83,32 +114,21 @@ export const notesRouter = {
    * usually the same.
    */
   getNotesInRange: protectedProcedure
-    .input(
-      z.object({
-        journalId: z.string(),
-        /** `yyyy-MM-dd`, inclusive. */
-        start: z.string(),
-        /** `yyyy-MM-dd`, inclusive. */
-        end: z.string(),
-        timeZone: timeZoneInput,
-      }),
-    )
+    .input(noteRangeInput)
     .handler(async ({ context, input }) => {
       await assertJournalOwned(context, input.journalId);
 
-      // The day boundaries are computed in the reader's zone, not the server's.
-      // On Vercel the server is UTC, which would file a note written at 02:00
-      // IST under the previous day.
-      const zone = resolveTimeZone(input.timeZone);
-      const { start, end } = rangeWindow(input.start, input.end, zone);
+      // Cut in the reader zone, not the server's. On Vercel the server is UTC,
+      // which would file a note written at 02:00 IST under the previous day.
+      const { calendar, window } = input;
 
       const notes = await context.db.note.findMany({
         where: {
           ...ownedNoteWhere(context.userId),
           journalId: input.journalId,
           createdAt: {
-            gte: start,
-            lt: end,
+            gte: window.start,
+            lt: window.end,
           },
         },
         select: {
@@ -133,7 +153,7 @@ export const notesRouter = {
 
       return notes.map((note) => ({
         ...note,
-        ...zonedDayAndMinutes(note.createdAt, zone),
+        ...calendar.dayAndMinutesOf(note.createdAt),
       }));
     }),
   getNoteById: protectedProcedure

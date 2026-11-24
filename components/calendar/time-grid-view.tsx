@@ -1,6 +1,7 @@
 "use client";
 
 import { NoteEvent, type CalendarNote } from "@/components/calendar/note-event";
+import { useNowMinutes } from "@/components/reader-zone";
 import { DAY_KEY, formatMinutes, packEvents, SLOT_MINUTES } from "@/lib/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -24,6 +25,32 @@ const DEFAULT_SCROLL_HOUR = 7;
 const MIN_WEEK_WIDTH = 640;
 
 /**
+ * The "now" line across today's column.
+ *
+ * Its own component so that the once-a-minute tick re-renders this one line,
+ * not the grid, the toolbar and every note chip around it.
+ */
+function NowLine() {
+  const nowMinutes = useNowMinutes();
+
+  // Null during the server render and hydration: see `useNowMinutes`.
+  if (nowMinutes === null) return null;
+
+  return (
+    <div
+      aria-hidden
+      // Clay, not destructive-red. "Now" is a position on a grid, not a
+      // failure, and it was borrowing the one colour the app reserves for
+      // things going wrong.
+      className="pointer-events-none absolute inset-x-0 z-10 border-t border-brand"
+      style={{ top: (nowMinutes / 60) * HOUR_PX }}
+    >
+      <span className="absolute -top-1 -left-1 size-2 rounded-full bg-brand" />
+    </div>
+  );
+}
+
+/**
  * The week and day views.
  *
  * One component for both: a day view is a week view with a single column, and
@@ -40,7 +67,6 @@ export const TimeGridView = ({
   notesByDay,
   selectedKey,
   todayKey,
-  nowMinutes,
   journalId,
   onSelectDay,
 }: {
@@ -48,8 +74,6 @@ export const TimeGridView = ({
   notesByDay: Map<string, CalendarNote[]>;
   selectedKey: string;
   todayKey: string;
-  /** Minutes past local midnight, or null before hydration decides. */
-  nowMinutes: number | null;
   journalId: string;
   onSelectDay: (day: Date) => void;
 }) => {
@@ -145,7 +169,6 @@ export const TimeGridView = ({
           {days.map((day) => {
             const key = format(day, DAY_KEY);
             const placed = packEvents(notesByDay.get(key) ?? []);
-            const showNow = key === todayKey && nowMinutes !== null;
 
             return (
               <div
@@ -189,18 +212,7 @@ export const TimeGridView = ({
                   </div>
                 ))}
 
-                {showNow && (
-                  <div
-                    aria-hidden
-                    // Clay, not destructive-red. "Now" is a position on a grid,
-                    // not a failure, and it was borrowing the one colour the app
-                    // reserves for things going wrong.
-                    className="pointer-events-none absolute inset-x-0 z-10 border-t border-brand"
-                    style={{ top: (nowMinutes / 60) * HOUR_PX }}
-                  >
-                    <span className="absolute -top-1 -left-1 size-2 rounded-full bg-brand" />
-                  </div>
-                )}
+                {key === todayKey && <NowLine />}
               </div>
             );
           })}

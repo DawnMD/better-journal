@@ -10,7 +10,8 @@ const noSubscribe = () => () => {};
  * The zone to render timestamps in: the browser's, or the server's guess until
  * the browser can answer.
  *
- * Same shape and same reasoning as `useToday` — `serverZone` comes from the `tz`
+ * Same shape and same reasoning as `ReaderZoneProvider` (which supersedes this
+ * for the calendar) — `serverZone` comes from the `tz`
  * cookie and is only ever a guess, so it is the *hydration* snapshot rather than
  * the value. Rendering the server's own zone instead would put every timestamp
  * hours off on first paint and then tear the tree down over the mismatch; going
