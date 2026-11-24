@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import { formatDate, formatNumber } from "@/lib/format";
 import { orpc } from "@/lib/orpc.query";
-import { useReaderZone } from "@/components/reader-zone";
+import { useReaderToday, useReaderZone } from "@/components/reader-zone";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { TableIcon } from "lucide-react";
 import Link from "next/link";
@@ -108,7 +108,8 @@ function buildWeeks(year: number, byDay: Record<string, { count: number; words: 
 }
 
 export const ActivityHeatmap = () => {
-  const { zone: timeZone, today } = useReaderZone();
+  const { zone: timeZone } = useReaderZone();
+  const today = useReaderToday();
   // The reader's year, not the runtime's: around New Year they differ, and the
   // page prefetched the reader's.
   const thisYear = Number(today.slice(0, 4));
