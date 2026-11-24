@@ -8,8 +8,9 @@ export default defineConfig({
     },
   },
   test: {
-    // Node, not jsdom: these are router and helper tests. The browser-side
-    // behaviour is covered by Playwright instead of a simulated DOM.
+    // Node, not jsdom: these are mostly router and helper tests. A component
+    // test that has to drive a form opts into a DOM per file, with
+    // `// @vitest-environment happy-dom`.
     environment: "node",
     globalSetup: ["./tests/global-setup.ts"],
     setupFiles: ["./tests/setup.ts"],

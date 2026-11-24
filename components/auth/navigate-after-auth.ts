@@ -12,8 +12,8 @@ export const AFTER_AUTH_URL = "/dashboard";
  * origin does nothing, so an absolute URL has to become a real navigation.
  *
  * A pending session task (organization selection and friends) is not special
- * cased: this instance configures none, and `auth.protect()` in the middleware
- * would route to the task anyway on the way to the destination.
+ * cased: this instance configures none, and `auth.protect()` in the signed-in
+ * shell would route to the task anyway on the way to the destination.
  *
  * Both parameters are typed structurally so this file does not have to reach
  * for Next's internal router type or for `@clerk/shared`, which pnpm does not

@@ -1,7 +1,7 @@
 "use client";
 
 import { EmptyState } from "@/components/empty-state";
-import { columns } from "@/components/trash-columns";
+import { columns, trashTableFeatures } from "@/components/trash-columns";
 import {
   Table,
   TableBody,
@@ -13,13 +13,7 @@ import {
 import { useReaderZone } from "@/components/reader-zone";
 import { orpc } from "@/lib/orpc.query";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  ExpandedState,
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { ExpandedState, flexRender, useTable } from "@tanstack/react-table";
 import { Fragment, useState } from "react";
 
 export const TrashedJournalTable = () => {
@@ -33,15 +27,13 @@ export const TrashedJournalTable = () => {
 
   const [expanded, setExpanded] = useState<ExpandedState>({});
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: trashTableFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
     onExpandedChange: setExpanded,
 
-    getRowCanExpand: ({ original }) => !!original.notes.length,
+    getRowCanExpand: (row) => !!row.original.notes.length,
 
     state: { expanded },
   });
@@ -84,8 +76,8 @@ export const TrashedJournalTable = () => {
           {table.getRowModel().rows.length ? (
             table.getRowModel().rows.map((row) => (
               <Fragment key={row.id}>
-                <TableRow data-state={row.getIsSelected() && "selected"}>
-                  {row.getVisibleCells().map((cell) => (
+                <TableRow>
+                  {row.getAllCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -97,7 +89,7 @@ export const TrashedJournalTable = () => {
 
                 {row.getIsExpanded() && (
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={row.getVisibleCells().length}>
+                    <TableCell colSpan={row.getAllCells().length}>
                       {/* Inset and tinted, so a journal's notes read as being
                           *inside* it rather than as more rows of the same list. */}
                       <div className="rounded-md bg-muted/40 p-4">

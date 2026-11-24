@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { HydrateClient } from "@/components/hydration";
 import { ReaderZoneProvider } from "@/components/reader-zone";
 import { PageContainer } from "@/components/shell/page-container";
@@ -7,6 +8,8 @@ import { getQueryClient } from "@/lib/query/get-query-client";
 import { readerCalendarFromCookie } from "@/server/lib/reader-calendar";
 
 export default async function TrashPage() {
+  await auth.protect();
+
   const queryClient = getQueryClient();
 
   queryClient.prefetchQuery(

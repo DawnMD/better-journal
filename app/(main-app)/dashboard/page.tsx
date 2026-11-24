@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { ActivityHeatmap } from "@/components/dashboard/activity-heatmap";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { WordsChart } from "@/components/dashboard/words-chart";
@@ -11,6 +12,8 @@ import { readerCalendarFromCookie } from "@/server/lib/reader-calendar";
 import { Suspense } from "react";
 
 export default async function DashboardPage() {
+  await auth.protect();
+
   const calendar = await readerCalendarFromCookie();
   const timeZone = calendar.zone;
   // The reader's year, not the server's: around New Year they differ, and the

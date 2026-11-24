@@ -103,7 +103,7 @@ The note is read *through* the share row on every request rather than copied int
 
 Two things the public procedure does not do: it does not `include`, and it does not return an id. `getSharedNote` selects `title`, `content` and `createdAt` by name — a link should say what was shared and nothing about who shared it or what else they have written, and an `include` would leak the next column somebody adds to `Note`.
 
-The page renders on the server with `PlateStatic`, so a recipient gets markup rather than the editor, and the token never reaches application JavaScript. `/share(.*)` is public in `proxy.ts`; `/rpc` deliberately is not, so the public procedure has no anonymous HTTP entrance at all.
+The page renders on the server with `PlateStatic`, so a recipient gets markup rather than the editor, and the token never reaches application JavaScript. The share page never calls `auth.protect()`, so it is public; the `/rpc` route handler does, so the public procedure has no anonymous HTTP entrance at all (see `proxy.ts`).
 
 ---
 
