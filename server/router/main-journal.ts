@@ -1,40 +1,25 @@
-import { ORPCError } from "@orpc/client";
 import z from "zod";
+import {
+  findJournal,
+  listLiveJournals,
+  listTrashedJournals,
+  purgeJournal,
+  restoreJournal,
+  trashJournal,
+} from "../lib/journal-access";
 import { protectedProcedure } from "../orpc";
 
 /**
- * The journal columns that are safe to send to a browser.
- *
- * Spelled out rather than left to Prisma's default "every scalar", so adding a
- * column to the model does not silently start shipping it to the client.
+ * Journal procedures. Each one only wires its input to journal access, which
+ * owns which journals a caller may reach and the trash lifecycle: a live
+ * journal can be trashed, a trashed journal can be restored or purged, and
+ * everything else is NOT_FOUND.
  */
-const journalPublicFields = {
-  id: true,
-  title: true,
-  description: true,
-  userId: true,
-  trash: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
-
 export const journalRouter = {
   /** The sidebar's journal list. */
   getAllJournal: protectedProcedure
     .input(z.void())
-    .handler(async ({ context }) => {
-      return context.db.journal.findMany({
-        where: {
-          userId: context.userId,
-          trash: false,
-        },
-        select: journalPublicFields,
-        // Without an explicit order Postgres is free to return rows in any
-        // order, which made the sidebar reshuffle between renders. This ordering
-        // is what @@index([userId, trash, updatedAt]) exists to serve.
-        orderBy: { updatedAt: "desc" },
-      });
-    }),
+    .handler(async ({ context }) => listLiveJournals(context)),
   createJournal: protectedProcedure
     .input(
       z.object({
@@ -55,10 +40,12 @@ export const journalRouter = {
       return data.id;
     }),
   /**
-   * The journal itself. Notes are deliberately *not* included: the calendar
-   * that used to need them is served by `notesRouter.getNotesInRange`, which is
-   * bounded to the days actually on screen instead of loading every note the
-   * journal has ever held.
+   * The journal itself, or NOT_FOUND for one that is missing, someone else's or
+   * in the trash — the page turns that into a 404, as it does for a note.
+   *
+   * Notes are deliberately *not* included: the calendar is served by
+   * `notesRouter.getNotesInRange`, which is bounded to the days actually on
+   * screen instead of loading every note the journal has ever held.
    */
   getJournalById: protectedProcedure
     .input(
@@ -66,18 +53,8 @@ export const journalRouter = {
         id: z.string(),
       }),
     )
-    .handler(async ({ context, input }) => {
-      // Null rather than a throw: the caller renders notFound() for this, and a
-      // missing journal is an expected navigation outcome, not an error.
-      return context.db.journal.findFirst({
-        where: {
-          id: input.id,
-          userId: context.userId,
-          trash: false,
-        },
-        select: journalPublicFields,
-      });
-    }),
+    .handler(async ({ context, input }) => findJournal(context, input.id)),
+  /** Live → trashed. */
   moveToTrash: protectedProcedure
     .input(
       z.object({
@@ -85,19 +62,11 @@ export const journalRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      // Scoped write: ownership is a predicate on the update, so a journal the
-      // caller does not own is indistinguishable from one that does not exist.
-      // NOT_FOUND (not UNAUTHORIZED) — the caller *is* authenticated, and 401
-      // would bounce a legitimately signed-in user out of the app.
-      const { count } = await context.db.journal.updateMany({
-        where: { id: input.id, userId: context.userId },
-        data: { trash: true },
-      });
-
-      if (count === 0) throw new ORPCError("NOT_FOUND");
+      await trashJournal(context, input.id);
 
       return { id: input.id };
     }),
+  /** Trashed → live. */
   removeFromTrash: protectedProcedure
     .input(
       z.object({
@@ -105,15 +74,11 @@ export const journalRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      const { count } = await context.db.journal.updateMany({
-        where: { id: input.id, userId: context.userId },
-        data: { trash: false },
-      });
-
-      if (count === 0) throw new ORPCError("NOT_FOUND");
+      await restoreJournal(context, input.id);
 
       return { id: input.id };
     }),
+  /** Purges a trashed journal and all its notes. */
   deletePermanently: protectedProcedure
     .input(
       z.object({
@@ -121,34 +86,11 @@ export const journalRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      const { count } = await context.db.journal.deleteMany({
-        where: { id: input.id, userId: context.userId },
-      });
-
-      if (count === 0) throw new ORPCError("NOT_FOUND");
+      await purgeJournal(context, input.id);
 
       return { id: input.id };
     }),
   getTrashedJournal: protectedProcedure
     .input(z.void())
-    .handler(async ({ context }) => {
-      return context.db.journal.findMany({
-        where: {
-          userId: context.userId,
-          trash: true,
-        },
-        select: {
-          ...journalPublicFields,
-          notes: {
-            select: {
-              id: true,
-              updatedAt: true,
-              title: true,
-            },
-            orderBy: { updatedAt: "desc" },
-          },
-        },
-        orderBy: { updatedAt: "desc" },
-      });
-    }),
+    .handler(async ({ context }) => listTrashedJournals(context)),
 };

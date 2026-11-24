@@ -129,18 +129,21 @@ describe("notesRouter — cross-tenant access", () => {
 });
 
 describe("journalRouter — cross-tenant access", () => {
+  // Wiring tests, one per procedure: they prove the procedure goes through
+  // journal access. The lifecycle rules (which moves each state allows, and
+  // foreign / nonexistent journals) are tested once, against the module, in
+  // tests/server/journal-access.test.ts.
   let journalA: Awaited<ReturnType<typeof makeJournal>>;
 
   beforeEach(async () => {
     journalA = await makeJournal(USER_A);
   });
 
-  it("getJournalById returns null for another user's journal", async () => {
-    // Null rather than a throw: the page renders notFound() from this, and a
-    // missing journal is an expected navigation outcome.
-    await expect(
+  it("getJournalById does not return another user's journal", async () => {
+    await expectOrpcError(
       asB().journalRouter.getJournalById({ id: journalA.id }),
-    ).resolves.toBeNull();
+      "NOT_FOUND",
+    );
   });
 
   it("getAllJournal only ever returns the caller's own journals", async () => {
@@ -189,32 +192,15 @@ describe("journalRouter — cross-tenant access", () => {
     expect(after.trash).toBe(true);
   });
 
-  it("deletePermanently cannot delete another user's journal", async () => {
+  it("deletePermanently cannot purge another user's journal", async () => {
+    const trashed = await makeJournal(USER_A, { trash: true });
+
     await expectOrpcError(
-      asB().journalRouter.deletePermanently({ id: journalA.id }),
+      asB().journalRouter.deletePermanently({ id: trashed.id }),
       "NOT_FOUND",
     );
 
-    expect(await testDb.journal.count({ where: { id: journalA.id } })).toBe(1);
-  });
-
-  it("mutations on a nonexistent id are NOT_FOUND, not 401", async () => {
-    // The regression this guards: these used to throw UNAUTHORIZED, which would
-    // bounce a legitimately signed-in user out of the app.
-    const a = asA();
-
-    await expectOrpcError(
-      a.journalRouter.moveToTrash({ id: "nope" }),
-      "NOT_FOUND",
-    );
-    await expectOrpcError(
-      a.journalRouter.removeFromTrash({ id: "nope" }),
-      "NOT_FOUND",
-    );
-    await expectOrpcError(
-      a.journalRouter.deletePermanently({ id: "nope" }),
-      "NOT_FOUND",
-    );
+    expect(await testDb.journal.count({ where: { id: trashed.id } })).toBe(1);
   });
 
   it("refuses anonymous callers", async () => {
@@ -261,5 +247,31 @@ describe("owners can still do everything", () => {
       a.notesRouter.getNoteById({ noteId: created.id }),
       "NOT_FOUND",
     );
+  });
+
+  it("supports the journal trash lifecycle for the owner", async () => {
+    const a = asA();
+    const journalId = await a.journalRouter.createJournal({ title: "Old" });
+
+    await a.journalRouter.moveToTrash({ id: journalId });
+    await expectOrpcError(
+      a.journalRouter.getJournalById({ id: journalId }),
+      "NOT_FOUND",
+    );
+    expect(
+      (await a.journalRouter.getTrashedJournal()).map((j) => j.id),
+    ).toEqual([journalId]);
+
+    // The trash page's "Restore".
+    await a.journalRouter.removeFromTrash({ id: journalId });
+    expect((await a.journalRouter.getJournalById({ id: journalId })).id).toBe(
+      journalId,
+    );
+
+    // The trash page's "Delete", which only a trashed journal allows.
+    await a.journalRouter.moveToTrash({ id: journalId });
+    await a.journalRouter.deletePermanently({ id: journalId });
+    expect(await a.journalRouter.getTrashedJournal()).toEqual([]);
+    expect(await testDb.journal.count({ where: { id: journalId } })).toBe(0);
   });
 });

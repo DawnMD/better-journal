@@ -1,8 +1,9 @@
-import { ORPCError } from "@orpc/client";
 import { HL_END, HL_START } from "@/lib/search";
 import { MAX_TAG_FILTER } from "@/lib/tags";
+import { Prisma } from "@/prisma/generated/prisma/client";
 import z from "zod";
-import { assertJournalOwned } from "../lib/note-access";
+import { assertJournalOwned, ownedNoteSql } from "../lib/note-access";
+import { assertTagsOwned, hasEveryTagSql } from "../lib/tags";
 import { protectedProcedure } from "../orpc";
 
 /**
@@ -111,19 +112,13 @@ export const searchRouter = {
         await assertJournalOwned(context, input.journalId);
       }
 
-      const tagIds = [...new Set(input.tagIds ?? [])];
+      const tagIds = input.tagIds ?? [];
 
-      if (tagIds.length > 0) {
-        // Mirrors removeTagFromNote. Not load-bearing for confidentiality — the
-        // results below are user-scoped regardless — but it turns "a tag id that
-        // isn't yours" into an explicit refusal instead of a silent empty list,
-        // which is the difference between a bug report and a mystery.
-        const owned = await context.db.tag.count({
-          where: { id: { in: tagIds }, userId: context.userId },
-        });
-
-        if (owned !== tagIds.length) throw new ORPCError("NOT_FOUND");
-      }
+      // Not load-bearing for confidentiality — the results below are
+      // user-scoped regardless — but it turns "a tag id that isn't yours" into
+      // an explicit refusal instead of a silent empty list, which is the
+      // difference between a bug report and a mystery.
+      await assertTagsOwned(context, tagIds);
 
       const hasQuery = input.query.length > 0;
       const parsed = parseSearchQuery(input.query);
@@ -137,19 +132,18 @@ export const searchRouter = {
       // ranking and the headline are guaranteed to use the identical query. Three
       // separate copies would be three chances to drift.
       //
-      // Tag filtering extends this statement rather than adding a second
-      // "browse by tag" query. The security predicates above exist in
-      // exactly one place, and a parallel branch is precisely how one of them
-      // gets left out of the copy. So when there is no text, `tsq` is NULL and
-      // the match, the snippet and the rank each degrade in place: everything
-      // matches, the snippet becomes a plain excerpt, and the rank flattens to 0
-      // so the existing ORDER BY falls through to `createdAt DESC` on its own.
+      // Which notes are reachable and what "carries every tag" means are not
+      // written here: they are the note access module's owned-note fragment
+      // and the tag module's has-every-tag fragment, so raw SQL cannot drift
+      // from the rule the Prisma queries use.
       //
-      // The tag clause has AND semantics, expressed by counting a note's matched
-      // join rows and requiring all of them. In `_NoteToTag`, "A" is the Note and
-      // "B" is the Tag — per the foreign keys in the add_tags migration, and
-      // reversing them returns zero rows silently rather than failing. The
-      // `_NoteToTag_B_index` index serves the `B = ANY(...)` scan.
+      // Tag filtering extends this statement rather than adding a second
+      // "browse by tag" query, since a parallel branch is precisely how one of
+      // the predicates gets left out of the copy. So when there is no text,
+      // `tsq` is NULL and the match, the snippet and the rank each degrade in
+      // place: everything matches, the snippet becomes a plain excerpt, and the
+      // rank flattens to 0 so the existing ORDER BY falls through to
+      // `createdAt DESC` on its own.
       const rows = await context.db.$queryRaw<SearchRow[]>`
         WITH q AS (
           SELECT CASE
@@ -181,17 +175,10 @@ export const searchRouter = {
         FROM "Note" n
         JOIN "Journal" j ON j."id" = n."journalId"
         CROSS JOIN q
-        WHERE j."userId" = ${context.userId}
-          AND j."trash" = false
+        WHERE ${ownedNoteSql(context.userId, Prisma.raw(`n."journalId"`))}
           AND (${input.journalId ?? null}::text IS NULL OR n."journalId" = ${input.journalId ?? null})
           AND (q.tsq IS NULL OR n."searchVector" @@ q.tsq)
-          AND (${tagIds.length}::int = 0 OR n."id" IN (
-            SELECT nt."A"
-            FROM "_NoteToTag" nt
-            WHERE nt."B" = ANY(${tagIds}::text[])
-            GROUP BY nt."A"
-            HAVING count(*) = ${tagIds.length}::int
-          ))
+          AND ${hasEveryTagSql(Prisma.raw(`n."id"`), tagIds)}
         ORDER BY "rank" DESC, n."createdAt" DESC
         LIMIT ${input.limit}
       `;
