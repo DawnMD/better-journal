@@ -44,7 +44,7 @@ import { toast } from "sonner";
  * one and five, so the useful control is a *switcher*: it names where you are,
  * which a list of five links never did, and costs one line of the top bar
  * instead of a permanent 256px column. Browsing what is *inside* a journal is
- * the calendar's job, and finding a specific note is ⌘K's.
+ * the calendar's job.
  *
  * Popover + Command rather than a plain menu, matching the tag filter bar and the
  * editor's tag combobox: one interaction pattern for "pick a thing from a list

@@ -5,12 +5,11 @@ import { useReaderZone } from "@/components/reader-zone";
 import { JournalSwitcher } from "@/components/shell/journal-switcher";
 import { SaveIndicator } from "@/components/shell/save-indicator";
 import { UserMenu } from "@/components/shell/user-menu";
-import { openSearchPalette } from "@/components/search-palette";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/lib/orpc.query";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeftIcon, PenLineIcon, SearchIcon } from "lucide-react";
+import { ArrowLeftIcon, PenLineIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -19,8 +18,8 @@ import { Suspense, useState } from "react";
  * The signed-in shell, in 56 pixels.
  *
  * This replaces a 16rem icon-collapsible sidebar. The sidebar earns its keep when
- * the content is a tree you browse constantly; here there are five destinations,
- * ⌘K is already mounted globally, and the real browse surface is the calendar —
+ * the content is a tree you browse constantly; here there are five destinations
+ * and the real browse surface is the calendar —
  * so the column was paying 256px on every screen, including the note editor,
  * which is the one screen this app exists for.
  *
@@ -83,7 +82,6 @@ function BrowseBar() {
       <JournalSwitcher />
 
       <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-        <SearchButton />
         <NewEntryButton />
         <UserMenu />
       </div>
@@ -152,35 +150,9 @@ function NoteBar({
       <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
         {/* The autosave state, where the per-save toast used to be. */}
         <SaveIndicator className="hidden sm:inline" />
-        <SearchButton />
         <UserMenu />
       </div>
     </>
-  );
-}
-
-/**
- * ⌘K, for the pointer.
- *
- * The palette itself is mounted once in the layout and listens on `window`, so
- * this is a `dispatchEvent` rather than lifted state — see search-palette.tsx.
- * The shortcut is spelled out on wide screens because a search affordance that
- * only teaches its own shortcut by being hovered teaches it to nobody.
- */
-function SearchButton() {
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={openSearchPalette}
-      aria-label="Search notes"
-      className="h-8 gap-2 px-2 font-normal text-muted-foreground hover:text-foreground sm:px-2.5"
-    >
-      <SearchIcon className="size-4" />
-      <kbd className="hidden font-mono text-[11px] tracking-wide md:inline">
-        ⌘K
-      </kbd>
-    </Button>
   );
 }
 
