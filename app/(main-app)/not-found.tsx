@@ -5,7 +5,7 @@ import { JournalNotFound } from "@/components/journal-not-found";
  * resolves. The view is shared with the journal's error boundary, which shows
  * it when the miss is discovered by the client query instead of the server page.
  *
- * Nested under (main-app) so the top bar and the ⌘K palette stay mounted: a dead
+ * Nested under (main-app) so the top bar stays mounted: a dead
  * link should cost you the pane, not the app.
  */
 export default function MainAppNotFound() {

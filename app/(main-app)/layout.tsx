@@ -1,5 +1,4 @@
 import { ReaderZoneProvider } from "@/components/reader-zone";
-import { SearchPalette } from "@/components/search-palette";
 import { AppTopbar } from "@/components/shell/app-topbar";
 
 /**
@@ -22,8 +21,9 @@ export default function MainLayout({ children }: LayoutProps<"/">) {
     // Pages that print dates on first paint mount their own cookie-seeded
     // provider, which overrides this one beneath it.
     <ReaderZoneProvider initialZone="UTC">
-      {/* Mounted once for the whole signed-in shell so ⌘K works on every page. */}
-      <SearchPalette />
+      {/* Full-text search is switched off (#37). The code is kept: mounting
+          <SearchPalette /> from @/components/search-palette here, once for the
+          whole shell, brings ⌘K back. */}
       <AppTopbar />
       <main className="flex-1">{children}</main>
     </ReaderZoneProvider>
