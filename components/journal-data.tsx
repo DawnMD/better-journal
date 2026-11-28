@@ -1,7 +1,7 @@
 "use client";
 
-import { JournalCalendar } from "@/components/calendar/journal-calendar";
 import { ExportJournalButton } from "@/components/export-journal-button";
+import { JournalBrowser } from "@/components/journal/journal-browser";
 import { isNotFoundError } from "@/lib/orpc.errors";
 import { orpc } from "@/lib/orpc.query";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -37,7 +37,7 @@ export const JournalData = ({ id }: { id: string }) => {
         <ExportJournalButton journalId={id} />
       </header>
 
-      <JournalCalendar journalId={id} />
+      <JournalBrowser journalId={id} />
     </div>
   );
 };

@@ -7,8 +7,7 @@ import { XIcon } from "lucide-react";
 /**
  * A tag, rendered as a coloured chip.
  *
- * Hand-rolled rather than built on the shadcn Badge, the same way
- * components/calendar/note-event.tsx builds its own chip: this needs a colour
+ * Hand-rolled rather than built on the shadcn Badge: this needs a colour
  * class string chosen at runtime, an optional remove button, and a smaller size
  * than Badge's cva offers. Bending those three out of Badge's variants is more
  * code than the component itself.
@@ -35,7 +34,7 @@ export const TagChip = ({
   className,
 }: {
   name: string;
-  /** Omit for a read-only chip. Never passed inside a link — see NoteEvent. */
+  /** Omit for a read-only chip. Never passed inside a link: a button inside an `<a>` is invalid. */
   onRemove?: () => void;
   size?: "default" | "sm";
   disabled?: boolean;

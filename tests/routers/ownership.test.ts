@@ -57,6 +57,28 @@ describe("notesRouter — cross-tenant access", () => {
     expect(count).toBe(1);
   });
 
+  it("listNotes does not leak another user's notes", async () => {
+    await expectOrpcError(
+      asB().notesRouter.listNotes({ journalId: journalA.id, timeZone: "UTC" }),
+      "NOT_FOUND",
+    );
+  });
+
+  it("listNotes refuses to filter by someone else's tag", async () => {
+    await asA().tagRouter.addTagToNote({ noteId: noteA.id, name: "secret" });
+    const [tagA] = await asA().tagRouter.getAllTags();
+    const journalB = await makeJournal(USER_B);
+
+    await expectOrpcError(
+      asB().notesRouter.listNotes({
+        journalId: journalB.id,
+        timeZone: "UTC",
+        tagIds: [tagA!.id],
+      }),
+      "NOT_FOUND",
+    );
+  });
+
   it("getNotesInRange does not leak another user's note titles or activity", async () => {
     await expectOrpcError(
       asB().notesRouter.getNotesInRange({

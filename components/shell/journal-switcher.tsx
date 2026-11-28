@@ -126,8 +126,7 @@ export const JournalSwitcher = () => {
 
                     return (
                       // The row menu is overlaid on the item rather than nested
-                      // inside its content, for the reason note-event.tsx sets
-                      // out: cmdk fires `onSelect` from the item's own click
+                      // inside its content: cmdk fires `onSelect` from the item's own click
                       // handler, so a button living inside it would navigate as
                       // well as open. Stopping propagation on the trigger is
                       // what keeps the two apart.
