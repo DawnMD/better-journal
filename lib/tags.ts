@@ -71,9 +71,8 @@ export function serializeTagIds(tagIds: string[]): string {
  * router's tag clause):
  * a note passes only when it carries *every* selected tag.
  *
- * This is the whole calendar filter. It runs over the already-fetched range so
- * that `notesByDay`, the per-cell counts, the "+N more" count and `packEvents`
- * all see one array and cannot disagree about it.
+ * The calendar's filter. It runs over the already-fetched month so that the
+ * dots and the list agree about which notes match.
  */
 export function hasAllTags(
   note: { tags: { id: string }[] },
@@ -84,4 +83,20 @@ export function hasAllTags(
   const own = new Set(note.tags.map((tag) => tag.id));
 
   return tagIds.every((id) => own.has(id));
+}
+
+/**
+ * The filter ids from the URL that name a tag the reader actually has. A tag
+ * deleted in the manager, or a hand-edited id, would otherwise narrow the list
+ * to nothing with no visible reason — and the list query would answer
+ * NOT_FOUND for it. The journal page's server prefetch and its client both
+ * narrow through here, so they build the same list query key.
+ */
+export function ownedTagIds(
+  tagIds: readonly string[],
+  allTags: readonly { id: string }[],
+): string[] {
+  const owned = new Set(allTags.map((tag) => tag.id));
+
+  return tagIds.filter((id) => owned.has(id));
 }

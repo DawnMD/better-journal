@@ -11,7 +11,8 @@ import {
   updateNote,
 } from "../lib/note-access";
 import { readerZoneInput } from "../lib/reader-calendar";
-import { tagSummary } from "../lib/tags";
+import { assertTagsOwned, tagSummary } from "../lib/tags";
+import { MAX_TAG_FILTER } from "@/lib/tags";
 import { protectedProcedure } from "../orpc";
 
 /** Plate block node — `children` is recursive, so it is validated loosely below the top level. */
@@ -58,6 +59,64 @@ const noteRangeInput = z
       return z.NEVER;
     }
   });
+
+/** The longest a list row's preview may be, its ellipsis included. */
+const PREVIEW_LENGTH = 160;
+
+/**
+ * A note's plain text as one line of at most `PREVIEW_LENGTH` characters, cut
+ * on a word boundary. Done here rather than in the browser so the list never
+ * ships whole notes just to show their first sentence.
+ */
+function previewOf(plainText: string): string {
+  const text = plainText.replace(/\s+/g, " ").trim();
+
+  if (text.length <= PREVIEW_LENGTH) return text;
+
+  const room = text.slice(0, PREVIEW_LENGTH); // one past the budget for the body
+  const lastSpace = room.lastIndexOf(" ");
+  const body = lastSpace > 0 ? room.slice(0, lastSpace) : room.slice(0, -1);
+
+  return `${body.trimEnd()}…`;
+}
+
+/** A position in the list's (createdAt, id) order. */
+type ListPosition = { createdAt: Date; id: string };
+
+/**
+ * The list cursor, opaque to the client: `<ISO instant>_<note id>`. The id
+ * breaks ties between notes written in the same millisecond, so a page
+ * boundary falling between two of them neither drops nor repeats one.
+ */
+const encodeCursor = ({ createdAt, id }: ListPosition) =>
+  `${createdAt.toISOString()}_${id}`;
+
+const listCursorInput = z
+  .string()
+  .transform((value, ctx): ListPosition => {
+    const split = value.indexOf("_");
+    const createdAt = new Date(value.slice(0, split));
+    const id = value.slice(split + 1);
+
+    // The id may be empty: that is an anchor's position, handed back as the
+    // newer cursor of a first page with nothing on or before its day.
+    if (split < 0 || Number.isNaN(createdAt.getTime())) {
+      ctx.addIssue({ code: "custom", message: "Invalid cursor" });
+      return z.NEVER;
+    }
+
+    return { createdAt, id };
+  });
+
+/** Notes strictly older than `position` in the list's order. */
+const olderThan = ({ createdAt, id }: ListPosition) => ({
+  OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: id } }],
+});
+
+/** Notes strictly newer than `position` in the list's order. */
+const newerThan = ({ createdAt, id }: ListPosition) => ({
+  OR: [{ createdAt: { gt: createdAt } }, { createdAt, id: { gt: id } }],
+});
 
 export const notesRouter = {
   createNote: protectedProcedure
@@ -155,6 +214,118 @@ export const notesRouter = {
         ...note,
         ...calendar.dayAndMinutesOf(note.createdAt),
       }));
+    }),
+  /**
+   * The journal page's note list: every note in the journal, newest first,
+   * each filed under the reader's calendar day.
+   */
+  listNotes: protectedProcedure
+    .input(
+      z.object({
+        journalId: z.string(),
+        timeZone: readerZoneInput,
+        /**
+         * A previous page's `olderCursor` or `newerCursor`, with the matching
+         * `direction`. Omitted for the first page.
+         */
+        cursor: listCursorInput.nullish(),
+        direction: z.enum(["older", "newer"]).default("older"),
+        /**
+         * `yyyy-MM-dd`: the first page opens on this reader's calendar day
+         * (the newest note on or before it) instead of on the newest note.
+         * Ignored when `cursor` is given.
+         */
+        anchor: z.iso.date().optional(),
+        /** Only notes carrying every one of these tags. */
+        tagIds: z.array(z.string()).max(MAX_TAG_FILTER).optional(),
+        limit: z.number().int().min(1).max(100).default(30),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const tagIds = input.tagIds ?? [];
+      await Promise.all([
+        assertJournalOwned(context, input.journalId),
+        assertTagsOwned(context, tagIds),
+      ]);
+
+      // Applied to the page *and* to the look past its far side, so a
+      // filtered list never offers a page of notes it would then hide.
+      const inJournal = {
+        ...ownedNoteWhere(context.userId),
+        journalId: input.journalId,
+        AND: tagIds.map((id) => ({ tags: { some: { id } } })),
+      };
+
+      // Where this page starts. An anchor is a position just past the end of
+      // its day — the empty id sorts before every real one — so "older" takes
+      // the day itself and "newer" starts at the next.
+      const start: ListPosition | null =
+        input.cursor ??
+        (input.anchor
+          ? {
+              createdAt: input.timeZone.dayWindow(input.anchor).end,
+              id: "",
+            }
+          : null);
+      const newer = input.direction === "newer";
+
+      // One extra row says whether another page exists, without a count.
+      const rows = await context.db.note.findMany({
+        where: {
+          ...inJournal,
+          ...(start ? (newer ? newerThan(start) : olderThan(start)) : {}),
+        },
+        take: input.limit + 1,
+        select: {
+          id: true,
+          title: true,
+          createdAt: true,
+          plainText: true,
+          tags: tagSummary,
+        },
+        // A newer page is read upward from its start, so it holds the notes
+        // nearest it, then flipped to the list's newest-first order.
+        orderBy: newer
+          ? [{ createdAt: "asc" }, { id: "asc" }]
+          : [{ createdAt: "desc" }, { id: "desc" }],
+      });
+
+      const hasMore = rows.length > input.limit;
+      const page = rows.slice(0, input.limit);
+      if (newer) page.reverse();
+
+      const newest = page.at(0);
+      const oldest = page.at(-1);
+
+      // The far side of the page from where it was read: is anything beyond
+      // it? Unanchored first pages start at the top, so nothing is newer.
+      const beyond = newer ? (oldest ?? start) : (newest ?? start);
+      const hasBeyond = beyond
+        ? (await context.db.note.count({
+            where: {
+              ...inJournal,
+              ...(newer ? olderThan(beyond) : newerThan(beyond)),
+            },
+            take: 1,
+          })) > 0
+        : false;
+
+      const cursorIf = (exists: boolean, at: ListPosition | null | undefined) =>
+        exists && at ? encodeCursor(at) : null;
+
+      return {
+        olderCursor: newer
+          ? cursorIf(hasBeyond, beyond)
+          : cursorIf(hasMore, oldest),
+        newerCursor: newer
+          ? cursorIf(hasMore, newest)
+          : cursorIf(hasBeyond, beyond),
+        notes: page.map(({ createdAt, plainText, ...note }) => ({
+          ...note,
+          day: input.timeZone.dayOf(createdAt),
+          preview: previewOf(plainText ?? ""),
+        })),
+      };
     }),
   getNoteById: protectedProcedure
     .input(

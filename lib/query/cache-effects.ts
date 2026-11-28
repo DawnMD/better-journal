@@ -44,6 +44,7 @@ export const cacheEffects: CacheEffects = {
       // Invalidated, not patched: which cached ranges the new note falls in
       // depends on each range's reader zone, which only the server works out.
       invalidateCalendarRanges(queryClient);
+      invalidateNoteLists(queryClient);
       staleSearch(queryClient);
       invalidateStats(queryClient);
     },
@@ -52,6 +53,12 @@ export const cacheEffects: CacheEffects = {
       // Only the content changed, so only the content is patched — the
       // calendar shows titles, which a save never touches.
       patchNote(queryClient, data.id, { content: data.content });
+      // The list shows a preview of the content, so it is staled — but, like
+      // the stats below, not refetched behind the editor on every pause.
+      queryClient.invalidateQueries({
+        queryKey: orpc.notesRouter.listNotes.key(),
+        refetchType: "none",
+      });
       staleSearch(queryClient);
       // Word counts move with every save, and saves arrive every few seconds
       // of typing; refetching the dashboard behind the editor each time would
@@ -69,6 +76,7 @@ export const cacheEffects: CacheEffects = {
         ),
       );
       patchNote(queryClient, data.id, { title: data.title });
+      invalidateNoteLists(queryClient);
       staleSearch(queryClient);
     },
 
@@ -83,6 +91,7 @@ export const cacheEffects: CacheEffects = {
           input: { noteId: data.id },
         }),
       });
+      invalidateNoteLists(queryClient);
       // Dropped from cached results as well as staled, so the palette cannot
       // offer a note that no longer exists before its next search.
       dropSearchHits(queryClient, (hit) => hit.id === data.id);
@@ -101,6 +110,11 @@ export const cacheEffects: CacheEffects = {
       // of them is removed outright rather than refetched into an error.
       queryClient.removeQueries({
         queryKey: orpc.notesRouter.getNotesInRange.key({
+          input: { journalId: data.id },
+        }),
+      });
+      queryClient.removeQueries({
+        queryKey: orpc.notesRouter.listNotes.key({
           input: { journalId: data.id },
         }),
       });
@@ -203,6 +217,17 @@ function invalidateCalendarRanges(queryClient: QueryClient) {
   });
 }
 
+/**
+ * Every cached note list, by partial key, whatever its anchor, tag filter or
+ * zone. Invalidated rather than patched: a list is a run of cursor-joined pages,
+ * and splicing a note in or out by hand would leave the cursors pointing past it.
+ */
+function invalidateNoteLists(queryClient: QueryClient) {
+  queryClient.invalidateQueries({
+    queryKey: orpc.notesRouter.listNotes.key(),
+  });
+}
+
 /** Every cached calendar range, patched in place. See `invalidateCalendarRanges`. */
 function patchCalendarRanges(
   queryClient: QueryClient,
@@ -299,6 +324,7 @@ function invalidateAfterTagChange(
   }
 
   invalidateCalendarRanges(queryClient);
+  invalidateNoteLists(queryClient);
   staleSearch(queryClient);
 }
 

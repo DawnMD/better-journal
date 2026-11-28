@@ -6,7 +6,6 @@ import {
   DEFAULT_TIME_ZONE,
   resolveTimeZone,
   TZ_COOKIE,
-  zonedDayAndMinutes,
 } from "@/lib/reader-calendar-core";
 import {
   createContext,
@@ -203,25 +202,4 @@ export function useReaderToday(): string {
 
   const readToday = () => dayKeyInTimeZone(new Date(), zone);
   return useSyncExternalStore(subscribeToMinute, readToday, readToday);
-}
-
-/**
- * Minutes past the reader's midnight, for the time grid's "now" line — or
- * `null` during the server render.
- *
- * Its own hook rather than a field on `useReaderZone`: it ticks every minute,
- * and only the component that draws the line should re-render when it does.
- *
- * Null server-side, deliberately. The line marks the reader's current time to
- * the minute, and a server-rendered one would be stale by the time it hydrated
- * and jump. Drawing nothing until the browser can answer is the honest version.
- */
-export function useNowMinutes(): number | null {
-  const { zone } = useReaderZone();
-
-  return useSyncExternalStore(
-    subscribeToMinute,
-    () => zonedDayAndMinutes(new Date(), zone).minutes,
-    () => null,
-  );
 }

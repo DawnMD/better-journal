@@ -3,10 +3,12 @@ import { HydrateClient } from "@/components/hydration";
 import { JournalData } from "@/components/journal-data";
 import { ReaderZoneProvider } from "@/components/reader-zone";
 import { PageContainer } from "@/components/shell/page-container";
-import { rangeKeys, resolveDayKey, resolveView } from "@/lib/calendar";
+import { rangeKeys, resolveDayKey } from "@/lib/calendar";
 import { isNotFoundError } from "@/lib/orpc.errors";
 import { orpc } from "@/lib/orpc.query";
 import { getQueryClient } from "@/lib/query/get-query-client";
+import { listNotesOptions } from "@/lib/query/list-notes";
+import { ownedTagIds, resolveTagIds } from "@/lib/tags";
 import { readerCalendarFromCookie } from "@/server/lib/reader-calendar";
 import { parseISO } from "date-fns";
 import { notFound } from "next/navigation";
@@ -18,9 +20,9 @@ export default async function JournalIdPage({
   await auth.protect();
 
   const { journalId } = await params;
-  const { date, view: viewParam } = (await searchParams) as {
+  const { date, tags } = (await searchParams) as {
     date?: string;
-    view?: string;
+    tags?: string;
   };
 
   // Read from the tz cookie so these prefetches build the same query keys the
@@ -30,40 +32,49 @@ export default async function JournalIdPage({
 
   // "Today" in the reader's zone rather than the server's. On Vercel the server
   // is UTC, so `new Date()` there would default a reader in Kiritimati to
-  // yesterday — a prefetch for the wrong grid, and a first paint the client then
-  // has to correct.
+  // yesterday — a prefetch for the wrong month, and a first paint the client
+  // then has to correct.
   const today = calendar.today();
 
-  // Both params are narrowed here as well as on the client, so a hand-edited
-  // query string opens on today rather than 500ing out of `format`.
-  const view = resolveView(viewParam);
-  const selected = resolveDayKey(date, today);
-
-  // The grid's extent is computed by the same function the client calls. Two
-  // implementations of "which days are on screen" would differ by an off-by-one
-  // somewhere and turn every first paint into a cache miss.
-  const range = rangeKeys(parseISO(selected), view);
+  // Narrowed here exactly as JournalBrowser narrows it, so a hand-edited query
+  // string opens the newest notes rather than 500ing out of `format`, and both
+  // sides build the same list key.
+  const anchor = resolveDayKey(date, "") || undefined;
 
   const queryClient = getQueryClient();
 
-  // Started before the existence check below so both round trips overlap.
-  // prefetchQuery swallows its own failures, so if the journal turns out not to
-  // resolve this just goes nowhere — the 404 is decided by the awaited query.
-  const prefetching = Promise.all([
-    queryClient.prefetchQuery(
-      orpc.notesRouter.getNotesInRange.queryOptions({
-        input: { journalId, ...range, timeZone },
-      }),
-    ),
-    // The filter bar's tag list. Called with no argument, exactly as the client
-    // calls it — `getAllTags` takes `z.void()`, and `.queryOptions({})` would
-    // not necessarily hash to the same key as `.queryOptions()`, which would
-    // quietly cost a second request on every load.
-    //
-    // `?tags=` is deliberately *not* read here: the filter runs client-side over
-    // this same range, so it does not change what needs prefetching.
-    queryClient.prefetchQuery(orpc.tagRouter.getAllTags.queryOptions()),
-  ]);
+  // Started before the existence check below so the round trips overlap.
+  // Prefetches swallow their own failures, so if the journal turns out not to
+  // resolve these just go nowhere — the 404 is decided by the awaited query.
+  const prefetching = (async () => {
+    // The tags first: the list is asked for with only the reader's own tag
+    // ids, so which of `?tags=` survive has to be known before its key is.
+    // Called with no argument, exactly as the client calls it — `getAllTags`
+    // takes `z.void()`, and `.queryOptions({})` would not necessarily hash to
+    // the same key as `.queryOptions()`.
+    const allTags = await queryClient
+      .fetchQuery(orpc.tagRouter.getAllTags.queryOptions())
+      .catch(() => null);
+    if (!allTags) return;
+
+    const tagIds = ownedTagIds(resolveTagIds(tags), allTags);
+
+    await Promise.all([
+      queryClient.prefetchInfiniteQuery(
+        listNotesOptions({ journalId, timeZone, anchor, tagIds }),
+      ),
+      // The calendar's first month — the same range the client derives.
+      queryClient.prefetchQuery(
+        orpc.notesRouter.getNotesInRange.queryOptions({
+          input: {
+            journalId,
+            ...rangeKeys(parseISO(anchor ?? today)),
+            timeZone,
+          },
+        }),
+      ),
+    ]);
+  })();
 
   // Awaited, unlike the one above: an id that does not resolve has to become a
   // real 404 — status code and all — here on the server. Prefetching it instead
@@ -85,7 +96,7 @@ export default async function JournalIdPage({
     throw error;
   }
 
-  // Awaited only now, so the range lands in the dehydrated state rather than
+  // Awaited only now, so the list and the month land in the dehydrated state rather than
   // racing it. Failure here is not fatal — the client refetches.
   await prefetching;
 
